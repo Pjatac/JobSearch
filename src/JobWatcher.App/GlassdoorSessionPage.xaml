@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="JobWatcher.App.GlassdoorSessionPage"
+             Title="Glassdoor session">
+    <ScrollView>
+        <VerticalStackLayout Padding="24" Spacing="14" MaximumWidthRequest="900">
+            <Label Text="Glassdoor session" FontSize="22" FontAttributes="Bold" />
+            <Label x:Name="StatusLabel" TextColor="{StaticResource Gray500}" />
+            <Label Text="Cookie" FontAttributes="Bold" />
+            <Editor x:Name="CookieEditor" AutoSize="TextChanges" MinimumHeightRequest="130" Placeholder="Paste the value beside the Cookie header" />
+            <Label Text="User-Agent" FontAttributes="Bold" />
+            <Editor x:Name="UserAgentEditor" AutoSize="TextChanges" MinimumHeightRequest="80" Placeholder="Paste the value beside the User-Agent header" />
+            <Label Text="Accept-Language" FontAttributes="Bold" />
+            <Editor x:Name="AcceptLanguageEditor" AutoSize="TextChanges" MinimumHeightRequest="60" Placeholder="Paste the value beside the Accept-Language header" />
+            <Label Text="In Chrome DevTools, open Network, reload the signed-in Glassdoor search page, select the document request, then open Headers and Request Headers. Copy only the value from the right column for each field below. Saved values are never shown again." TextColor="{StaticResource Gray500}" LineBreakMode="WordWrap" />
+            <Label Text="Chrome DevTools example" FontAttributes="Bold" />
+            <Image Source="glassdoor_devtools_request_headers.png" Aspect="AspectFit" />
+            <HorizontalStackLayout Spacing="8">
+                <Button Text="Save session" Clicked="OnSaveClicked" />
+                <Button Text="Clear session" Clicked="OnClearClicked" />
+            </HorizontalStackLayout>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

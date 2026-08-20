@@ -1,0 +1,136 @@
+using System.Web;
+using JobWatcher.Configuration;
+
+namespace JobWatcher.Sources.Drushim;
+
+public static class DrushimUrlBuilder
+{
+    public static string Build(JobSourceOptions options)
+    {
+        if (!string.IsNullOrWhiteSpace(options.Url))
+        {
+            return options.Url;
+        }
+
+        if (options.DrushimFilter is null)
+        {
+            throw new InvalidOperationException($"Source '{options.Name}' must define either url or drushimFilter.");
+        }
+
+        var filter = options.DrushimFilter;
+        var baseUri = new Uri(filter.BaseUrl.TrimEnd('/') + "/");
+        var subcategories = filter.SubcategoryIds.Count > 0
+            ? filter.SubcategoryIds
+            : filter.SubcategoryId is { } subcategoryId ? [subcategoryId] : [];
+
+        var path = subcategories.Count > 0
+            ? $"jobs/subcat/{string.Join('-', subcategories)}/"
+            : $"jobs/cat{filter.CategoryId}/";
+
+        if (filter.AreaIds.Count > 0)
+        {
+            path += $"area/{string.Join('-', filter.AreaIds)}/";
+        }
+
+        var builder = new UriBuilder(new Uri(baseUri, path));
+        var query = HttpUtility.ParseQueryString(string.Empty);
+
+        if (subcategories.Count > 0)
+        {
+            query["catdir"] = filter.CategoryId.ToString();
+        }
+
+        if (filter.Scopes.Count > 0)
+        {
+            query["scope"] = string.Join("-", filter.Scopes);
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.ExperienceRange))
+        {
+            query["experience"] = filter.ExperienceRange;
+        }
+
+        if (filter.GeoLexId is not null)
+        {
+            query["geolexid"] = filter.GeoLexId.ToString();
+        }
+
+        if (filter.IncludeAreaAround)
+        {
+            query["isaa"] = "true";
+        }
+
+        if (filter.Experience is not null)
+        {
+            query["ssaen"] = filter.Experience.ToString();
+        }
+
+        if (filter.Range is not null)
+        {
+            query["range"] = filter.Range.ToString();
+        }
+
+        builder.Query = query.ToString();
+        return builder.Uri.ToString();
+    }
+
+    public static string BuildApiSearch(JobSourceOptions options, int page)
+    {
+        if (options.DrushimFilter is null)
+        {
+            throw new InvalidOperationException($"Source '{options.Name}' must define drushimFilter for API search.");
+        }
+
+        var filter = options.DrushimFilter;
+        var builder = new UriBuilder(new Uri(new Uri(filter.BaseUrl.TrimEnd('/') + "/"), "api/jobs/search"));
+        var query = HttpUtility.ParseQueryString(string.Empty);
+        var subcategories = filter.SubcategoryIds.Count > 0
+            ? filter.SubcategoryIds
+            : filter.SubcategoryId is { } subcategoryId ? [subcategoryId] : [];
+
+        query["catdir"] = filter.CategoryId.ToString();
+
+        if (subcategories.Count > 0)
+        {
+            query["subcat"] = string.Join("-", subcategories);
+        }
+
+        if (filter.AreaIds.Count > 0)
+        {
+            query["area"] = string.Join("-", filter.AreaIds);
+        }
+
+        if (filter.Scopes.Count > 0)
+        {
+            query["scope"] = string.Join("-", filter.Scopes);
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.ExperienceRange))
+        {
+            query["experience"] = filter.ExperienceRange;
+        }
+
+        if (filter.GeoLexId is not null)
+        {
+            query["geolexid"] = filter.GeoLexId.ToString();
+        }
+
+        if (filter.IncludeAreaAround)
+        {
+            query["isaa"] = "true";
+        }
+
+        if (filter.Experience is not null)
+        {
+            query["ssaen"] = filter.Experience.ToString();
+        }
+
+        if (filter.Range is not null)
+        {
+            query["range"] = filter.Range.ToString();
+        }
+
+        builder.Query = query.ToString();
+        return $"{builder.Uri}&isAA=true&page={Math.Max(1, page)}";
+    }
+}

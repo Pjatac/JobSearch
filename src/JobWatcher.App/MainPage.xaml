@@ -1,0 +1,72 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="JobWatcher.App.MainPage">
+
+    <ScrollView>
+        <Grid Padding="24" RowDefinitions="Auto,Auto,Auto,*" RowSpacing="20" MaximumWidthRequest="1120">
+            <Grid ColumnDefinitions="*,Auto">
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="Job Watcher" FontAttributes="Bold" FontSize="28" />
+                    <Label Text="Configured searches and the latest collection state" TextColor="{StaticResource Gray500}" />
+                </VerticalStackLayout>
+                <Button x:Name="RunButton" Grid.Column="1" Text="Run" Clicked="OnRunClicked" />
+            </Grid>
+
+            <Grid Grid.Row="1" ColumnDefinitions="*,*" ColumnSpacing="16">
+                <Border Padding="16" Stroke="{StaticResource Gray200}">
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="Search profiles" FontAttributes="Bold" />
+                        <Label Text="{Binding Status}" FontSize="20" />
+                    </VerticalStackLayout>
+                </Border>
+                <Border Grid.Column="1" Padding="16" Stroke="{StaticResource Gray200}">
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="Relevance rules" FontAttributes="Bold" />
+                        <Label Text="{Binding ClassificationSummary}" LineBreakMode="WordWrap" />
+                    </VerticalStackLayout>
+                </Border>
+            </Grid>
+
+            <Border Grid.Row="2" Padding="16" Stroke="{StaticResource Gray200}">
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                    <Label Text="Glassdoor" FontAttributes="Bold" />
+                    <Label Grid.Column="1" Text="{Binding GlassdoorSessionStatus}" TextColor="{StaticResource Gray500}" />
+                </Grid>
+            </Border>
+
+            <Grid Grid.Row="3" RowDefinitions="Auto,*" RowSpacing="16">
+            <CollectionView ItemsSource="{Binding RunStatuses}" SelectionMode="None" HeightRequest="140">
+                <CollectionView.Header><Label Text="Latest Source Status" FontAttributes="Bold" FontSize="20" Margin="0,0,0,8" /></CollectionView.Header>
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto" RowSpacing="4" Padding="0,0,0,10">
+                            <Label Text="{Binding Source}" FontAttributes="Bold" />
+                            <Label Grid.Column="1" Text="{Binding Status}" TextColor="{StaticResource Gray500}" HorizontalTextAlignment="End" />
+                            <Label Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding Detail}" TextColor="{StaticResource Gray500}" LineBreakMode="WordWrap" />
+                        </Grid>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+            <CollectionView Grid.Row="1" ItemsSource="{Binding Sources}" SelectionMode="None">
+                <CollectionView.Header>
+                    <Label Text="Source Profiles" FontAttributes="Bold" FontSize="20" Margin="0,0,0,8" />
+                </CollectionView.Header>
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Border Padding="16" Margin="0,0,0,10" Stroke="{StaticResource Gray200}">
+                            <Grid ColumnDefinitions="3*,2*" RowDefinitions="Auto,Auto" RowSpacing="6">
+                                <Label Text="{Binding Name}" FontAttributes="Bold" FontSize="16" />
+                                <Label Grid.Column="1" Text="{Binding Status}" TextColor="{StaticResource Teal}" FontAttributes="Bold" HorizontalTextAlignment="End" />
+                                <Label Grid.Row="1" Text="{Binding Adapter}" TextColor="{StaticResource Gray500}" />
+                                <Label Grid.Row="1" Grid.Column="1" Text="{Binding Details}" TextColor="{StaticResource Gray500}" HorizontalTextAlignment="End" LineBreakMode="TailTruncation" />
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+            </Grid>
+        </Grid>
+    </ScrollView>
+
+</ContentPage>

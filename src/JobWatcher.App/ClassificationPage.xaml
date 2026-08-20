@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="JobWatcher.App.ClassificationPage"
+             Title="Classification">
+    <ScrollView>
+        <VerticalStackLayout Padding="24" Spacing="12" MaximumWidthRequest="900">
+            <Grid ColumnDefinitions="*,Auto">
+                <Label Text="Classification rules" FontSize="22" FontAttributes="Bold" />
+                <Button Grid.Column="1" Text="Save" Clicked="OnSaveClicked" />
+            </Grid>
+            <HorizontalStackLayout Spacing="12"><Label Text="Enabled" VerticalOptions="Center" /><Switch x:Name="EnabledSwitch" /></HorizontalStackLayout>
+            <Label Text="Description scan length" FontAttributes="Bold" /><Entry x:Name="DescriptionScanLengthEntry" Keyboard="Numeric" />
+            <Label Text="Include signals" FontAttributes="Bold" /><Editor x:Name="IncludeSignalsEditor" AutoSize="TextChanges" MinimumHeightRequest="90" />
+            <Label Text="Exclude other primary specializations" FontAttributes="Bold" />
+            <Label Text="A vacancy is excluded when it matches one of these signals and none of the include signals. Use this for any specialization outside your target field." TextColor="{StaticResource Gray500}" LineBreakMode="WordWrap" />
+            <Editor x:Name="OtherLanguagesEditor" AutoSize="TextChanges" MinimumHeightRequest="90" />
+            <Label Text="Role mismatch signals" FontAttributes="Bold" /><Editor x:Name="RoleMismatchEditor" AutoSize="TextChanges" MinimumHeightRequest="90" />
+            <Label Text="Junior signals" FontAttributes="Bold" /><Editor x:Name="JuniorSignalsEditor" AutoSize="TextChanges" MinimumHeightRequest="90" />
+            <Label Text="Junior experience patterns" FontAttributes="Bold" /><Editor x:Name="JuniorPatternsEditor" AutoSize="TextChanges" MinimumHeightRequest="90" />
+            <Label Text="Senior override signals" FontAttributes="Bold" /><Editor x:Name="SeniorOverrideEditor" AutoSize="TextChanges" MinimumHeightRequest="90" />
+            <Label Text="Far commute locations" FontAttributes="Bold" /><Editor x:Name="FarCommuteEditor" AutoSize="TextChanges" MinimumHeightRequest="90" />
+            <Label Text="Optional results focus" FontAttributes="Bold" />
+            <Label Text="This is a personal category shown as a switch in Results after the next collection run." TextColor="{StaticResource Gray500}" LineBreakMode="WordWrap" />
+            <Label Text="Focus label" FontAttributes="Bold" />
+            <Entry x:Name="SpecialInterestLabelEntry" Placeholder="e.g. Cyber / security" />
+            <Label Text="Matching signals" FontAttributes="Bold" />
+            <Label Text="Vacancies matching these signals receive the focus tag during collection. Leave the signals empty to hide the Results switch." TextColor="{StaticResource Gray500}" LineBreakMode="WordWrap" />
+            <Editor x:Name="CyberSignalsEditor" AutoSize="TextChanges" MinimumHeightRequest="90" />
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

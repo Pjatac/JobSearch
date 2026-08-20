@@ -1,0 +1,17 @@
+# Build output
+**/bin/
+**/obj/
+artifacts/
+
+# IDE and operating-system files
+.vs/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Local runtime state, diagnostics, snapshots, and browser sessions
+data/
+
+# Local per-user settings
+*.user
+*.suo

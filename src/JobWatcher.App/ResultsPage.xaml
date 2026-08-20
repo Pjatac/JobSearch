@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="JobWatcher.App.ResultsPage"
+             Title="Results">
+    <Grid Padding="24" RowDefinitions="Auto,Auto,Auto,*" RowSpacing="14">
+        <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="12">
+            <Label x:Name="StatusLabel" Text="No completed run yet" FontSize="20" FontAttributes="Bold" />
+            <Label x:Name="UpdatedLabel" Grid.Column="1" TextColor="{StaticResource Gray500}" VerticalOptions="Center" />
+            <Picker x:Name="ClassificationPicker" Grid.Column="2" Title="Classification" SelectedIndexChanged="OnFilterChanged" />
+            <Button Grid.Column="3" Text="Refresh" Clicked="OnRefreshClicked" />
+        </Grid>
+        <Border Grid.Row="1" Padding="14" Stroke="{StaticResource Gray200}">
+            <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="1.1*,1.1*,160,1*,Auto" RowSpacing="6" ColumnSpacing="12">
+                <Label Text="Search" />
+                <Label Grid.Column="1" Text="Source" />
+                <Label Grid.Column="2" Text="Sort" />
+                <Label Grid.Column="3" Text="Location" />
+                <SearchBar x:Name="SearchBar" Grid.Row="1" Placeholder="Title or company" TextChanged="OnFilterChanged" HeightRequest="48" VerticalOptions="Center" ToolTipProperties.Text="Filter by text in the vacancy title or company name." />
+                <Picker x:Name="SourcePicker" Grid.Row="1" Grid.Column="1" SelectedIndexChanged="OnFilterChanged" HeightRequest="48" VerticalOptions="Center" />
+                <Picker x:Name="SortPicker" Grid.Row="1" Grid.Column="2" SelectedIndexChanged="OnFilterChanged" HeightRequest="48" VerticalOptions="Center" />
+                <Entry x:Name="LocationEntry" Grid.Row="1" Grid.Column="3" Placeholder="Location contains" TextChanged="OnFilterChanged" HeightRequest="48" VerticalOptions="Center" ToolTipProperties.Text="Filter by text contained in the vacancy location." />
+                <HorizontalStackLayout Grid.Row="2" Spacing="20">
+                    <VerticalStackLayout x:Name="SpecialInterestFilter" Spacing="4" HorizontalOptions="Start" IsVisible="False">
+                        <Label x:Name="SpecialInterestLabel" ToolTipProperties.Text="Show only vacancies matching this optional focus tag." />
+                        <Switch x:Name="CyberSwitch" HorizontalOptions="Start" Toggled="OnFilterChanged" ToolTipProperties.Text="Show only vacancies classified as cyber or security roles." />
+                    </VerticalStackLayout>
+                    <VerticalStackLayout Spacing="4" HorizontalOptions="Start">
+                        <Label Text="Long commute" ToolTipProperties.Text="Show only vacancies whose location matches the long-commute rules." />
+                        <Switch x:Name="FarCommuteSwitch" HorizontalOptions="Start" Toggled="OnFilterChanged" ToolTipProperties.Text="Show only vacancies whose location matches the long-commute rules." />
+                    </VerticalStackLayout>
+                </HorizontalStackLayout>
+            </Grid>
+        </Border>
+        <Label Grid.Row="2" x:Name="SummaryLabel" TextColor="{StaticResource Gray500}" />
+        <CollectionView Grid.Row="3" x:Name="Jobs" SelectionMode="None">
+            <CollectionView.ItemTemplate>
+                <DataTemplate>
+                    <Border Padding="14" Margin="0,0,0,8" Stroke="{StaticResource Gray200}">
+                        <VerticalStackLayout Spacing="6">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <Label Text="{Binding Title}" FontAttributes="Bold" FontSize="16" />
+                                <Border Grid.Column="1" BackgroundColor="{Binding ClassificationBackground}" StrokeThickness="0" Padding="8,3">
+                                    <Label Text="{Binding Classification}" TextColor="{Binding ClassificationForeground}" FontSize="12" FontAttributes="Bold" />
+                                </Border>
+                            </Grid>
+                            <Label Text="{Binding Company}" />
+                            <HorizontalStackLayout Spacing="8">
+                                <Border BackgroundColor="{StaticResource Secondary}" StrokeThickness="0" Padding="7,2">
+                                    <Label Text="{Binding SourceLabel}" TextColor="{StaticResource Primary}" FontSize="12" />
+                                </Border>
+                                <Label Text="{Binding Metadata}" TextColor="{StaticResource Gray500}" FontSize="12" LineBreakMode="TailTruncation" VerticalOptions="Center" />
+                            </HorizontalStackLayout>
+                            <FlexLayout Direction="Row" Wrap="Wrap" BindableLayout.ItemsSource="{Binding ReasonTags}">
+                                <BindableLayout.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border BackgroundColor="{StaticResource Gray100}" StrokeThickness="0" Padding="7,2" Margin="0,0,6,4">
+                                            <Label Text="{Binding .}" TextColor="{StaticResource Gray600}" FontSize="12" />
+                                        </Border>
+                                    </DataTemplate>
+                                </BindableLayout.ItemTemplate>
+                            </FlexLayout>
+                            <HorizontalStackLayout HorizontalOptions="End" Spacing="8">
+                                <Button Text="Details" IsVisible="{Binding HasDescription}" Clicked="OnDetailsClicked" CommandParameter="{Binding .}" ToolTipProperties.Text="Show the saved vacancy description." />
+                                <Button Text="Open" Clicked="OnOpenClicked" CommandParameter="{Binding Url}" />
+                            </HorizontalStackLayout>
+                        </VerticalStackLayout>
+                    </Border>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+        <VerticalStackLayout Grid.Row="3" x:Name="EmptyState" IsVisible="False" HorizontalOptions="Center" VerticalOptions="Center" Spacing="6">
+            <Label Text="No vacancies match these filters" FontAttributes="Bold" HorizontalTextAlignment="Center" />
+            <Label x:Name="EmptyStateDetailLabel" Text="Adjust the filters or choose another classification." TextColor="{StaticResource Gray500}" HorizontalTextAlignment="Center" />
+        </VerticalStackLayout>
+        <Grid x:Name="DetailsOverlay" Grid.RowSpan="4" IsVisible="False" BackgroundColor="#80000000" Padding="48">
+            <Border HorizontalOptions="Center" VerticalOptions="Center" MaximumWidthRequest="900" MaximumHeightRequest="700" BackgroundColor="{AppThemeBinding Light=White, Dark=#1C1C1E}" Stroke="{StaticResource Gray300}" Padding="22">
+                <Grid RowDefinitions="Auto,Auto,Auto,*,Auto" RowSpacing="14">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="14">
+                        <Label x:Name="DetailsTitleLabel" FontSize="22" FontAttributes="Bold" />
+                        <Button x:Name="DetailsOpenButton" Grid.Column="1" Text="Open source" Clicked="OnOpenClicked" />
+                    </Grid>
+                    <Label Grid.Row="1" x:Name="DetailsMetadataLabel" TextColor="{StaticResource Gray500}" LineBreakMode="WordWrap" />
+                    <Label Grid.Row="2" Text="Description" FontAttributes="Bold" />
+                    <ScrollView Grid.Row="3">
+                        <Label x:Name="DetailsDescriptionLabel" LineBreakMode="WordWrap" LineHeight="1.35" />
+                    </ScrollView>
+                    <Button Grid.Row="4" Text="Close" Clicked="OnCloseDetailsClicked" HorizontalOptions="End" />
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</ContentPage>

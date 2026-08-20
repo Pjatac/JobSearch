@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="JobWatcher.App.SourceProfilesPage"
+             Title="Search profiles">
+    <Grid Padding="24" ColumnDefinitions="340,*" ColumnSpacing="20">
+        <Grid RowDefinitions="Auto,*" RowSpacing="12">
+            <Grid ColumnDefinitions="*,Auto">
+                <Label Text="Search profiles" FontSize="22" FontAttributes="Bold" />
+                <HorizontalStackLayout Grid.Column="1" Spacing="6">
+                    <Button Text="+" FontSize="24" WidthRequest="44" HeightRequest="44" Padding="0" Clicked="OnNewClicked" ToolTipProperties.Text="New profile" SemanticProperties.Description="New profile" />
+                    <Button Text="⧉" FontSize="22" WidthRequest="44" HeightRequest="44" Padding="0" Clicked="OnDuplicateClicked" ToolTipProperties.Text="Duplicate selected profile" SemanticProperties.Description="Duplicate selected profile" />
+                    <Button Text="−" FontSize="24" WidthRequest="44" HeightRequest="44" Padding="0" Clicked="OnDeleteClicked" ToolTipProperties.Text="Delete selected profile" SemanticProperties.Description="Delete selected profile" />
+                    <Button Text="⊘" FontSize="22" WidthRequest="44" HeightRequest="44" Padding="0" Clicked="OnClearAllClicked" ToolTipProperties.Text="Clear all profiles" SemanticProperties.Description="Clear all profiles" />
+                    <Button Text="✓" FontSize="22" WidthRequest="44" HeightRequest="44" Padding="0" Clicked="OnSaveClicked" ToolTipProperties.Text="Save profiles" SemanticProperties.Description="Save profiles" />
+                </HorizontalStackLayout>
+            </Grid>
+            <CollectionView x:Name="Profiles" Grid.Row="1" SelectionMode="Single" SelectionChanged="OnProfileSelected">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Border Padding="12" Margin="0,0,0,8" Stroke="{StaticResource Gray200}">
+                            <VerticalStackLayout Spacing="3">
+                                <Label Text="{Binding Name}" FontAttributes="Bold" />
+                                <Label Text="{Binding Adapter}" TextColor="{StaticResource Gray500}" />
+                            </VerticalStackLayout>
+                        </Border>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+        </Grid>
+
+        <ScrollView Grid.Column="1">
+            <VerticalStackLayout x:Name="Editor" Spacing="12">
+                <Label Text="Select a profile" FontSize="20" TextColor="{StaticResource Gray500}" />
+            </VerticalStackLayout>
+        </ScrollView>
+    </Grid>
+</ContentPage>
