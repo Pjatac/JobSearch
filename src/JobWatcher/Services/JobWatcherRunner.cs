@@ -5,6 +5,7 @@ using JobWatcher.Sources;
 using JobWatcher.Utilities;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System.Diagnostics;
 
 namespace JobWatcher.Services;
 
@@ -52,6 +53,8 @@ public sealed class JobWatcherRunner(
             retainedSnapshotSources.Add(sourceOptions.Name);
             NotifyStarted(sourceOptions.Name);
             var adapterName = sourceOptions.Adapter ?? sourceOptions.Name;
+            var sourceStopwatch = Stopwatch.StartNew();
+            logger.LogInformation("Starting source {Source} with adapter {Adapter}", sourceOptions.Name, adapterName);
             var source = sources.FirstOrDefault(s => string.Equals(s.Name, adapterName, StringComparison.OrdinalIgnoreCase));
             if (source is null)
             {
@@ -70,10 +73,33 @@ public sealed class JobWatcherRunner(
                 };
                 sourceOutputs.Add(failedOutput);
                 NotifyFinished(failedOutput);
+                logger.LogError("Source {Source} could not start after {ElapsedMilliseconds}ms: {Error}", sourceOptions.Name, sourceStopwatch.ElapsedMilliseconds, failedOutput.Error);
                 continue;
             }
 
-            var runResult = await source.FetchAsync(sourceOptions, generatedAtUtc, cancellationToken);
+            SourceRunResult runResult;
+            try
+            {
+                runResult = await source.FetchAsync(sourceOptions, generatedAtUtc, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                logger.LogWarning("Source {Source} was cancelled after {ElapsedMilliseconds}ms", sourceOptions.Name, sourceStopwatch.ElapsedMilliseconds);
+                throw;
+            }
+            catch (Exception exception)
+            {
+                logger.LogError(exception, "Source {Source} threw after {ElapsedMilliseconds}ms", sourceOptions.Name, sourceStopwatch.ElapsedMilliseconds);
+                throw;
+            }
+
+            logger.LogInformation(
+                "Source {Source} fetch completed after {ElapsedMilliseconds}ms. Success: {Success}. Vacancy count: {VacancyCount}",
+                sourceOptions.Name,
+                sourceStopwatch.ElapsedMilliseconds,
+                runResult.Success,
+                runResult.Snapshot?.Vacancies.Count ?? 0);
+
             if (!runResult.Success || runResult.Snapshot is null)
             {
                 failureCount++;
@@ -104,6 +130,8 @@ public sealed class JobWatcherRunner(
                 {
                     logger.LogError("Source {Source} failed: {Error}", sourceOptions.Name, runResult.Error);
                 }
+
+                logger.LogWarning("Source {Source} finished as failed after {ElapsedMilliseconds}ms", sourceOptions.Name, sourceStopwatch.ElapsedMilliseconds);
 
                 continue;
             }
@@ -148,6 +176,7 @@ public sealed class JobWatcherRunner(
             };
             sourceOutputs.Add(successfulOutput);
             NotifyFinished(successfulOutput);
+            logger.LogInformation("Source {Source} finished successfully after {ElapsedMilliseconds}ms", sourceOptions.Name, sourceStopwatch.ElapsedMilliseconds);
         }
 
         sourceOutputs = DeduplicateNewJobsForOutput(sourceOutputs);

@@ -19,15 +19,42 @@ public sealed class ManualRunService(RunStateService runState)
             Classification = settings.Classification
         };
 
+        var logPath = ManualRunFileLoggerProvider.CreateLogPath();
+        var fileLoggerProvider = new ManualRunFileLoggerProvider(logPath);
         var services = new ServiceCollection();
-        services.AddLogging(logging => logging.SetMinimumLevel(LogLevel.Information));
+        services.AddLogging(logging =>
+        {
+            logging.SetMinimumLevel(LogLevel.Information);
+            logging.AddProvider(fileLoggerProvider);
+        });
         services.AddSingleton<IOptions<JobWatcherOptions>>(Options.Create(options));
         services.AddSingleton<IJobWatcherRunObserver>(new ProgressObserver(onProgress));
         services.AddJobWatcherCollector();
         await using var provider = services.BuildServiceProvider();
-        var exitCode = await provider.GetRequiredService<JobWatcherRunner>().RunAsync(cancellationToken);
-        runState.NotifyRunCompleted();
-        return exitCode;
+        var logger = provider.GetRequiredService<ILogger<ManualRunService>>();
+        logger.LogInformation(
+            "Manual run started. Enabled profiles: {EnabledProfileCount}. Request timeout: {RequestTimeoutSeconds}s. Log: {LogPath}",
+            options.Sources.Count(source => source.Enabled),
+            options.RequestTimeoutSeconds,
+            logPath);
+
+        try
+        {
+            var exitCode = await provider.GetRequiredService<JobWatcherRunner>().RunAsync(cancellationToken);
+            logger.LogInformation("Manual run finished with exit code {ExitCode}", exitCode);
+            runState.NotifyRunCompleted();
+            return exitCode;
+        }
+        catch (OperationCanceledException)
+        {
+            logger.LogWarning("Manual run was cancelled");
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Manual run stopped with an unhandled exception");
+            throw;
+        }
     }
 
     private sealed class ProgressObserver(Action<RunProgressUpdate> onProgress) : IJobWatcherRunObserver
