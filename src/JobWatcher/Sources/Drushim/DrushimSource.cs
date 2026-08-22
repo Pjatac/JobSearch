@@ -166,19 +166,13 @@ public sealed class DrushimSource(
 
     private async Task SaveDiagnosticHtmlAsync(string html, string sourceName, DateTimeOffset collectedAtUtc, CancellationToken cancellationToken)
     {
-        var diagnosticsDirectory = Path.Combine(watcherOptions.Value.DataDirectory, "diagnostics");
-        Directory.CreateDirectory(diagnosticsDirectory);
-        var path = Path.Combine(diagnosticsDirectory, $"{FileNames.ToSafeName(sourceName)}-{collectedAtUtc:yyyyMMddTHHmmssZ}.html");
-        await File.WriteAllTextAsync(path, html, cancellationToken);
+        var path = await DiagnosticFileWriter.WriteLatestAsync(watcherOptions.Value.DataDirectory, sourceName, collectedAtUtc, "html", html, cancellationToken);
         logger.LogWarning("Wrote diagnostic HTML for source {Source} to {Path}", sourceName, path);
     }
 
     private async Task SaveDiagnosticTextAsync(string content, string sourceName, DateTimeOffset collectedAtUtc, string extension, CancellationToken cancellationToken)
     {
-        var diagnosticsDirectory = Path.Combine(watcherOptions.Value.DataDirectory, "diagnostics");
-        Directory.CreateDirectory(diagnosticsDirectory);
-        var path = Path.Combine(diagnosticsDirectory, $"{FileNames.ToSafeName(sourceName)}-{collectedAtUtc:yyyyMMddTHHmmssZ}.{extension}");
-        await File.WriteAllTextAsync(path, content, cancellationToken);
+        var path = await DiagnosticFileWriter.WriteLatestAsync(watcherOptions.Value.DataDirectory, sourceName, collectedAtUtc, extension, content, cancellationToken);
         logger.LogWarning("Wrote diagnostic response for source {Source} to {Path}", sourceName, path);
     }
 

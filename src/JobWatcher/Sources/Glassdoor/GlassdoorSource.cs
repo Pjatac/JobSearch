@@ -249,10 +249,7 @@ public sealed class GlassdoorSource(
 
     private async Task SaveDiagnosticAsync(string content, string sourceName, DateTimeOffset collectedAtUtc, string extension, CancellationToken cancellationToken)
     {
-        var diagnosticsDirectory = Path.Combine(watcherOptions.Value.DataDirectory, "diagnostics");
-        Directory.CreateDirectory(diagnosticsDirectory);
-        var path = Path.Combine(diagnosticsDirectory, $"{FileNames.ToSafeName(sourceName)}-{collectedAtUtc:yyyyMMddTHHmmssZ}.{extension}");
-        await File.WriteAllTextAsync(path, content, cancellationToken);
+        var path = await DiagnosticFileWriter.WriteLatestAsync(watcherOptions.Value.DataDirectory, sourceName, collectedAtUtc, extension, content, cancellationToken);
         logger.LogWarning("Wrote diagnostic response for source {Source} to {Path}", sourceName, path);
     }
 

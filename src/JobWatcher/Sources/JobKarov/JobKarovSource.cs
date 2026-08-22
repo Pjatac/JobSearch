@@ -75,10 +75,7 @@ public sealed class JobKarovSource(
 
     private async Task SaveDiagnosticHtmlAsync(string html, string sourceName, DateTimeOffset collectedAtUtc, CancellationToken cancellationToken)
     {
-        var diagnosticsDirectory = Path.Combine(watcherOptions.Value.DataDirectory, "diagnostics");
-        Directory.CreateDirectory(diagnosticsDirectory);
-        var path = Path.Combine(diagnosticsDirectory, $"{FileNames.ToSafeName(sourceName)}-{collectedAtUtc:yyyyMMddTHHmmssZ}.html");
-        await File.WriteAllTextAsync(path, html, cancellationToken);
+        var path = await DiagnosticFileWriter.WriteLatestAsync(watcherOptions.Value.DataDirectory, sourceName, collectedAtUtc, "html", html, cancellationToken);
         logger.LogWarning("Wrote diagnostic HTML for source {Source} to {Path}", sourceName, path);
     }
 
