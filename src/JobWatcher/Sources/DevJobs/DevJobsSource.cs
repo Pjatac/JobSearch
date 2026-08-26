@@ -34,6 +34,61 @@ public sealed class DevJobsSource(
             var jobCardCount = 0;
             string? latestSearchHtml = null;
 
+            if (!string.IsNullOrWhiteSpace(filter.NameFilter))
+            {
+                var initialUrl = !string.IsNullOrWhiteSpace(options.Url) ? options.Url : DevJobsUrlBuilder.Build(filter, 1);
+                logger.LogInformation("Fetching DevJobs source {Source} before applying text search from {Url}", options.Name, initialUrl);
+                using var initialResponse = await client.GetAsync(initialUrl, cancellationToken);
+                latestSearchHtml = await initialResponse.Content.ReadAsStringAsync(cancellationToken);
+                if (!initialResponse.IsSuccessStatusCode)
+                {
+                    await SaveDiagnosticHtmlAsync(latestSearchHtml, options.Name, collectedAtUtc, cancellationToken);
+                    return Failed(options.Name, warnings, $"HTTP {(int)initialResponse.StatusCode} {initialResponse.ReasonPhrase}");
+                }
+
+                var session = parser.ParseLivewireSession(latestSearchHtml);
+                var endpoint = new Uri(new Uri(filter.BaseUrl.TrimEnd('/') + "/"), "livewire/update");
+                using var searchRequest = DevJobsLivewireRequestFactory.CreateSearchRequest(endpoint, session, filter.NameFilter);
+                searchRequest.Headers.Referrer = new Uri(initialUrl);
+                logger.LogInformation("Applying DevJobs text search for source {Source}", options.Name);
+                using var searchResponse = await client.SendAsync(searchRequest, cancellationToken);
+                var responseJson = await searchResponse.Content.ReadAsStringAsync(cancellationToken);
+                if (!searchResponse.IsSuccessStatusCode)
+                {
+                    return Failed(options.Name, warnings, $"DevJobs text search returned HTTP {(int)searchResponse.StatusCode} {searchResponse.ReasonPhrase}");
+                }
+
+                var livewire = parser.ParseLivewireResponse(responseJson);
+                session = session with { Snapshot = livewire.Snapshot };
+                latestSearchHtml = livewire.Html;
+                for (var page = 1; page <= maxPages; page++)
+                {
+                    var search = parser.ParseSearch(latestSearchHtml, options.Name, collectedAtUtc);
+                    warnings.AddRange(search.Warnings);
+                    jobCardCount += search.JobCardCount;
+                    await AddPageVacanciesAsync(client, search.Vacancies, maxDetails, vacancies, options.Name, collectedAtUtc, warnings, cancellationToken);
+                    if (!search.HasNextPage)
+                    {
+                        break;
+                    }
+
+                    using var pageRequest = DevJobsLivewireRequestFactory.CreatePageRequest(endpoint, session, page + 1);
+                    pageRequest.Headers.Referrer = new Uri(initialUrl);
+                    using var pageResponse = await client.SendAsync(pageRequest, cancellationToken);
+                    var pageJson = await pageResponse.Content.ReadAsStringAsync(cancellationToken);
+                    if (!pageResponse.IsSuccessStatusCode)
+                    {
+                        return Failed(options.Name, warnings, $"DevJobs page {page + 1} returned HTTP {(int)pageResponse.StatusCode} {pageResponse.ReasonPhrase}");
+                    }
+
+                    livewire = parser.ParseLivewireResponse(pageJson);
+                    session = session with { Snapshot = livewire.Snapshot };
+                    latestSearchHtml = livewire.Html;
+                }
+
+                return await Complete(options, warnings, vacancies.Values, jobCardCount, latestSearchHtml, collectedAtUtc, cancellationToken);
+            }
+
             for (var page = 1; page <= maxPages; page++)
             {
                 var searchUrl = !string.IsNullOrWhiteSpace(options.Url) ? options.Url : DevJobsUrlBuilder.Build(filter, page);
@@ -50,20 +105,7 @@ public sealed class DevJobsSource(
                 var search = parser.ParseSearch(html, options.Name, collectedAtUtc);
                 warnings.AddRange(search.Warnings);
                 jobCardCount += search.JobCardCount;
-                var pageVacancies = new List<JobVacancy>();
-                foreach (var listedVacancy in search.Vacancies)
-                {
-                    if (vacancies.TryAdd(listedVacancy.ExternalId, listedVacancy))
-                    {
-                        pageVacancies.Add(listedVacancy);
-                    }
-                }
-
-                foreach (var listedVacancy in pageVacancies.Take(maxDetails))
-                {
-                    var vacancy = await LoadDetailsAsync(client, listedVacancy, options.Name, collectedAtUtc, warnings, cancellationToken);
-                    vacancies[vacancy.ExternalId] = vacancy;
-                }
+                await AddPageVacanciesAsync(client, search.Vacancies, maxDetails, vacancies, options.Name, collectedAtUtc, warnings, cancellationToken);
 
                 if (!search.HasNextPage)
                 {
@@ -71,7 +113,35 @@ public sealed class DevJobsSource(
                 }
             }
 
-            var orderedVacancies = vacancies.Values.OrderBy(vacancy => vacancy.ExternalId, StringComparer.OrdinalIgnoreCase).ToList();
+            return await Complete(options, warnings, vacancies.Values, jobCardCount, latestSearchHtml, collectedAtUtc, cancellationToken);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return Failed(options.Name, warnings, ex.Message);
+        }
+    }
+
+    private async Task AddPageVacanciesAsync(HttpClient client, IReadOnlyList<JobVacancy> listedVacancies, int maxDetails, IDictionary<string, JobVacancy> vacancies, string sourceName, DateTimeOffset collectedAtUtc, List<string> warnings, CancellationToken cancellationToken)
+    {
+        var pageVacancies = new List<JobVacancy>();
+        foreach (var listedVacancy in listedVacancies)
+        {
+            if (vacancies.TryAdd(listedVacancy.ExternalId, listedVacancy))
+            {
+                pageVacancies.Add(listedVacancy);
+            }
+        }
+
+        foreach (var listedVacancy in pageVacancies.Take(maxDetails))
+        {
+            var vacancy = await LoadDetailsAsync(client, listedVacancy, sourceName, collectedAtUtc, warnings, cancellationToken);
+            vacancies[vacancy.ExternalId] = vacancy;
+        }
+    }
+
+    private async Task<SourceRunResult> Complete(JobSourceOptions options, List<string> warnings, IEnumerable<JobVacancy> vacancies, int jobCardCount, string? latestSearchHtml, DateTimeOffset collectedAtUtc, CancellationToken cancellationToken)
+    {
+        var orderedVacancies = vacancies.OrderBy(vacancy => vacancy.ExternalId, StringComparer.OrdinalIgnoreCase).ToList();
             logger.LogInformation("DevJobs source {Source}: parsed {VacancyCount} vacancies from {JobCardCount} cards", options.Name, orderedVacancies.Count, jobCardCount);
             if (orderedVacancies.Count < options.MinimumExpectedVacancies)
             {
@@ -90,11 +160,6 @@ public sealed class DevJobsSource(
                 Snapshot = new SourceSnapshot { Source = options.Name, CollectedAtUtc = collectedAtUtc, Vacancies = orderedVacancies },
                 Warnings = warnings
             };
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            return Failed(options.Name, warnings, ex.Message);
-        }
     }
 
     private async Task<JobVacancy> LoadDetailsAsync(HttpClient client, JobVacancy listedVacancy, string sourceName, DateTimeOffset collectedAtUtc, List<string> warnings, CancellationToken cancellationToken)

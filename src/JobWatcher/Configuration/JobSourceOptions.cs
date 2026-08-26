@@ -103,6 +103,7 @@ public sealed class DevJobsFilterOptions
 {
     public string BaseUrl { get; init; } = "https://devjobs.co.il";
     public string SearchUrl { get; init; } = "/jobs-grid?developerTypes=Backend&district=Hasharon";
+    public string? NameFilter { get; init; }
     public int MaxPages { get; init; } = 10;
     public int MaxDetailsPerPage { get; init; } = 30;
 }

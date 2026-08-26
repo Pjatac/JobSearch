@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Net;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using HtmlAgilityPack;
 using JobWatcher.Models;
@@ -36,6 +37,78 @@ public sealed partial class DevJobsHtmlParser
             : [$"Skipped {skippedCards} DevJobs cards without title or URL."];
         var hasNextPage = document.DocumentNode.SelectSingleNode("//*[@dusk='nextPage' and not(@disabled)]") is not null;
         return new DevJobsSearchParseResult(vacancies.Values.OrderBy(item => item.ExternalId, StringComparer.OrdinalIgnoreCase).ToList(), warnings, cards.Count, hasNextPage);
+    }
+
+    public DevJobsLivewireSession ParseLivewireSession(string html)
+    {
+        var document = new HtmlDocument();
+        document.LoadHtml(html);
+        var token = document.DocumentNode.SelectSingleNode("//meta[translate(@name, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz')='csrf-token']")
+            ?.GetAttributeValue("content", string.Empty)
+            .Trim();
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            throw new InvalidOperationException("DevJobs search page did not contain a CSRF token.");
+        }
+
+        var components = document.DocumentNode.Descendants()
+            .Where(node => node.Attributes["wire:snapshot"] is not null)
+            .ToList();
+        foreach (var component in components)
+        {
+            var snapshot = WebUtility.HtmlDecode(component.GetAttributeValue("wire:snapshot", string.Empty));
+            if (string.IsNullOrWhiteSpace(snapshot))
+            {
+                continue;
+            }
+
+            try
+            {
+                using var json = JsonDocument.Parse(snapshot);
+                if (json.RootElement.TryGetProperty("memo", out var memo) &&
+                    memo.TryGetProperty("name", out var name) &&
+                    string.Equals(name.GetString(), "find-job", StringComparison.OrdinalIgnoreCase))
+                {
+                    return new DevJobsLivewireSession(token, snapshot);
+                }
+            }
+            catch (JsonException)
+            {
+                // Other Livewire components on the page do not affect job search.
+            }
+        }
+
+        throw new InvalidOperationException("DevJobs search page did not contain the find-job Livewire component.");
+    }
+
+    public DevJobsLivewireResponse ParseLivewireResponse(string json)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            if (!document.RootElement.TryGetProperty("components", out var components) ||
+                components.ValueKind != JsonValueKind.Array ||
+                components.GetArrayLength() == 0)
+            {
+                throw new InvalidOperationException("DevJobs Livewire response did not contain a component.");
+            }
+
+            var component = components[0];
+            var snapshot = component.TryGetProperty("snapshot", out var snapshotValue) ? snapshotValue.GetString() : null;
+            var html = component.TryGetProperty("effects", out var effects) && effects.TryGetProperty("html", out var htmlValue)
+                ? htmlValue.GetString()
+                : null;
+            if (string.IsNullOrWhiteSpace(snapshot) || string.IsNullOrWhiteSpace(html))
+            {
+                throw new InvalidOperationException("DevJobs Livewire response did not contain updated search HTML and snapshot.");
+            }
+
+            return new DevJobsLivewireResponse(snapshot, html);
+        }
+        catch (JsonException ex)
+        {
+            throw new InvalidOperationException("DevJobs returned invalid Livewire JSON.", ex);
+        }
     }
 
     public DevJobsDetailParseResult ParseDetail(string html, string sourceName, string url, DateTimeOffset collectedAtUtc)
@@ -178,3 +251,7 @@ public sealed record DevJobsSearchParseResult(
     bool HasNextPage);
 
 public sealed record DevJobsDetailParseResult(JobVacancy? Vacancy, IReadOnlyList<string> Warnings);
+
+public sealed record DevJobsLivewireSession(string CsrfToken, string Snapshot);
+
+public sealed record DevJobsLivewireResponse(string Snapshot, string Html);

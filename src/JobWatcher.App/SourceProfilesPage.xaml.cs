@@ -58,6 +58,7 @@ public partial class SourceProfilesPage : ContentPage
     private Entry? secretTelAvivMaxDetailsEntry;
     private Entry? devJobsBaseUrlEntry;
     private Entry? devJobsSearchUrlEntry;
+    private Entry? devJobsNameFilterEntry;
     private Entry? devJobsMaxPagesEntry;
     private Entry? devJobsMaxDetailsEntry;
     private Label? generatedUrlLabel;
@@ -624,6 +625,7 @@ public partial class SourceProfilesPage : ContentPage
             {
                 BaseUrl = baseUrl,
                 SearchUrl = searchUrl,
+                NameFilter = devJobsNameFilterEntry?.Text?.Trim(),
                 MaxPages = maxPages,
                 MaxDetailsPerPage = maxDetails
             };
@@ -791,6 +793,8 @@ public partial class SourceProfilesPage : ContentPage
         devJobsBaseUrlEntry = AddEntry("Base URL", filter.BaseUrl);
         devJobsSearchUrlEntry = AddEntry("Search URL", filter.SearchUrl);
         AddKnownValuesHint("Use the path or full URL produced by the DevJobs filters. The collector requests numbered pages automatically.");
+        devJobsNameFilterEntry = AddEntry("Job name or skill text", filter.NameFilter ?? string.Empty);
+        AddKnownValuesHint("This is applied through the site's Livewire search after the URL filters load. Example: .NET.");
         devJobsMaxPagesEntry = AddEntry("Maximum pages", filter.MaxPages.ToString());
         devJobsMaxDetailsEntry = AddEntry("Maximum detail pages per result page", filter.MaxDetailsPerPage.ToString());
     }

@@ -42,4 +42,19 @@ public sealed class DevJobsHtmlParserTests
         Assert.Equal(["Hybrid"], vacancy.EmploymentTypes);
         Assert.Equal("Mize is a dynamic Fintech-travel startup.\nOur R&D team is seeking a Backend Developer.\nRequirements:\n- 3+ years of professional C# development experience.\n- Solid understanding of .NET.\n\nSkills: C# - 3y, .NET, Couchbase", vacancy.Description);
     }
+
+    [Fact]
+    public void ParsesFindJobLivewireSessionAndResponse()
+    {
+        const string initialHtml = "<meta name=\"csrf-token\" content=\"test-token\"><div wire:snapshot=\"{&quot;data&quot;:{&quot;nameFilter&quot;:&quot;&quot;},&quot;memo&quot;:{&quot;name&quot;:&quot;find-job&quot;}}\"></div>";
+        const string responseJson = "{\"components\":[{\"snapshot\":\"{\\\"data\\\":{\\\"nameFilter\\\":\\\".NET\\\"}}\",\"effects\":{\"html\":\"<div class='card-grid-2 hover-up newDesign'></div>\"}}]}";
+
+        var session = parser.ParseLivewireSession(initialHtml);
+        var response = parser.ParseLivewireResponse(responseJson);
+
+        Assert.Equal("test-token", session.CsrfToken);
+        Assert.Contains("find-job", session.Snapshot, StringComparison.Ordinal);
+        Assert.Contains(".NET", response.Snapshot, StringComparison.Ordinal);
+        Assert.Contains("card-grid-2", response.Html, StringComparison.Ordinal);
+    }
 }
