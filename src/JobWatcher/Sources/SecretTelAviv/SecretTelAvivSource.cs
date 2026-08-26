@@ -18,14 +18,16 @@ public sealed class SecretTelAvivSource(
     public async Task<SourceRunResult> FetchAsync(JobSourceOptions options, DateTimeOffset collectedAtUtc, CancellationToken cancellationToken)
     {
         var warnings = new List<string>();
-        var url = !string.IsNullOrWhiteSpace(options.Url) ? options.Url : options.SecretTelAvivFilter?.SearchUrl;
-        if (string.IsNullOrWhiteSpace(url))
+        if (string.IsNullOrWhiteSpace(options.Url) && options.SecretTelAvivFilter is null)
         {
             return Failed(options.Name, warnings, $"Source '{options.Name}' must define secretTelAvivFilter.searchUrl.");
         }
 
         try
         {
+            var url = !string.IsNullOrWhiteSpace(options.Url)
+                ? options.Url
+                : SecretTelAvivUrlBuilder.Build(options.SecretTelAvivFilter!);
             using var client = httpClientFactory.CreateClient(HttpClientName);
             client.Timeout = TimeSpan.FromSeconds(Math.Max(1, watcherOptions.Value.RequestTimeoutSeconds));
             logger.LogInformation("Fetching source {Source} from {Url}", options.Name, url);

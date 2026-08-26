@@ -133,16 +133,39 @@ public sealed class SourceProfileValidator
 
     private static void ValidateSecretTelAviv(JobSourceOptions source, List<string> errors)
     {
-        var url = !string.IsNullOrWhiteSpace(source.Url)
-            ? source.Url
-            : source.SecretTelAvivFilter?.SearchUrl;
-
-        if (!Uri.TryCreate(url, UriKind.Absolute, out var parsed) ||
-            !string.Equals(parsed.Host, "jobs.secrettelaviv.com", StringComparison.OrdinalIgnoreCase))
+        if (!string.IsNullOrWhiteSpace(source.Url))
         {
-            errors.Add("Secret Tel Aviv requires an absolute jobs.secrettelaviv.com search URL.");
+            if (!IsSecretTelAvivUri(source.Url))
+            {
+                errors.Add("Secret Tel Aviv requires an absolute jobs.secrettelaviv.com search URL.");
+            }
+
+            return;
+        }
+
+        var filter = source.SecretTelAvivFilter;
+        if (filter is null || !IsSecretTelAvivUri(filter.BaseUrl))
+        {
+            errors.Add("Secret Tel Aviv requires an absolute jobs.secrettelaviv.com base URL.");
+            return;
+        }
+
+        try
+        {
+            if (!IsSecretTelAvivUri(Sources.SecretTelAviv.SecretTelAvivUrlBuilder.Build(filter)))
+            {
+                errors.Add("Secret Tel Aviv search URL must stay on jobs.secrettelaviv.com.");
+            }
+        }
+        catch (InvalidOperationException)
+        {
+            errors.Add("Secret Tel Aviv requires a search URL.");
         }
     }
+
+    private static bool IsSecretTelAvivUri(string? value) =>
+        Uri.TryCreate(value, UriKind.Absolute, out var parsed) &&
+        string.Equals(parsed.Host, "jobs.secrettelaviv.com", StringComparison.OrdinalIgnoreCase);
 }
 
 public sealed record SourceProfileValidationResult(

@@ -93,6 +93,7 @@ public sealed class GlassdoorFilterOptions
 
 public sealed class SecretTelAvivFilterOptions
 {
-    public string SearchUrl { get; init; } = "https://jobs.secrettelaviv.com/list/find/?query=Back+End";
+    public string BaseUrl { get; init; } = "https://jobs.secrettelaviv.com";
+    public string SearchUrl { get; init; } = "/list/find/?query=Back+End";
     public int MaxDetailsPerSearch { get; init; } = 30;
 }

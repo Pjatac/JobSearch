@@ -94,4 +94,21 @@ public sealed class SourceProfileValidatorTests
         Assert.False(invalid.IsValid);
         Assert.True(valid.IsValid);
     }
+
+    [Fact]
+    public void SecretTelAvivAllowsRelativeSearchPathOnItsBaseUrl()
+    {
+        var result = validator.Validate(new JobSourceOptions
+        {
+            Name = "Secret Tel Aviv",
+            Adapter = "SecretTelAviv",
+            SecretTelAvivFilter = new SecretTelAvivFilterOptions
+            {
+                BaseUrl = "https://jobs.secrettelaviv.com",
+                SearchUrl = "/list/find/?query=Back+End"
+            }
+        });
+
+        Assert.True(result.IsValid);
+    }
 }

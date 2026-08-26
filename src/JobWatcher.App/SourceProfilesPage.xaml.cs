@@ -2,6 +2,7 @@ using JobWatcher.Configuration;
 using JobWatcher.Sources.AllJobs;
 using JobWatcher.Sources.Drushim;
 using JobWatcher.Sources.JobKarov;
+using JobWatcher.Sources.SecretTelAviv;
 
 namespace JobWatcher.App;
 
@@ -51,6 +52,7 @@ public partial class SourceProfilesPage : ContentPage
     private Entry? glassdoorDelayEntry;
     private Entry? glassdoorMaxPagesEntry;
     private Entry? glassdoorJobsPerPageEntry;
+    private Entry? secretTelAvivBaseUrlEntry;
     private Entry? secretTelAvivSearchUrlEntry;
     private Entry? secretTelAvivMaxDetailsEntry;
     private Label? generatedUrlLabel;
@@ -546,13 +548,27 @@ public partial class SourceProfilesPage : ContentPage
         }
 
         var secretTelAvivFilter = previous.SecretTelAvivFilter;
-        if (string.Equals(previous.Adapter, "SecretTelAviv", StringComparison.OrdinalIgnoreCase) && secretTelAvivSearchUrlEntry is not null)
+        if (string.Equals(previous.Adapter, "SecretTelAviv", StringComparison.OrdinalIgnoreCase) &&
+            secretTelAvivBaseUrlEntry is not null &&
+            secretTelAvivSearchUrlEntry is not null)
         {
+            var baseUrl = secretTelAvivBaseUrlEntry.Text?.Trim() ?? string.Empty;
             var searchUrl = secretTelAvivSearchUrlEntry.Text?.Trim() ?? string.Empty;
-            if (!Uri.TryCreate(searchUrl, UriKind.Absolute, out var parsedUrl) ||
-                !string.Equals(parsedUrl.Host, "jobs.secrettelaviv.com", StringComparison.OrdinalIgnoreCase))
+            var candidate = new SecretTelAvivFilterOptions { BaseUrl = baseUrl, SearchUrl = searchUrl };
+            try
             {
-                await DisplayAlertAsync("Check the profile", "Secret Tel Aviv needs an absolute jobs.secrettelaviv.com search URL.", "OK");
+                var resolvedUrl = SecretTelAvivUrlBuilder.Build(candidate);
+                if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out var parsedBaseUrl) ||
+                    !string.Equals(parsedBaseUrl.Host, "jobs.secrettelaviv.com", StringComparison.OrdinalIgnoreCase) ||
+                    !Uri.TryCreate(resolvedUrl, UriKind.Absolute, out var parsedSearchUrl) ||
+                    !string.Equals(parsedSearchUrl.Host, "jobs.secrettelaviv.com", StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new InvalidOperationException();
+                }
+            }
+            catch (InvalidOperationException)
+            {
+                await DisplayAlertAsync("Check the profile", "Secret Tel Aviv needs a jobs.secrettelaviv.com base URL and a search path or URL on the same host.", "OK");
                 return false;
             }
 
@@ -562,7 +578,7 @@ public partial class SourceProfilesPage : ContentPage
                 return false;
             }
 
-            secretTelAvivFilter = new SecretTelAvivFilterOptions { SearchUrl = searchUrl, MaxDetailsPerSearch = maxDetails };
+            secretTelAvivFilter = new SecretTelAvivFilterOptions { BaseUrl = baseUrl, SearchUrl = searchUrl, MaxDetailsPerSearch = maxDetails };
         }
 
         sources[selectedIndex] = new JobSourceOptions
@@ -707,8 +723,9 @@ public partial class SourceProfilesPage : ContentPage
         var filter = source.SecretTelAvivFilter ?? new SecretTelAvivFilterOptions();
         Editor.Children.Add(new BoxView { HeightRequest = 1, Margin = new Thickness(0, 8), BackgroundColor = Colors.LightGray });
         Editor.Children.Add(new Label { Text = "Secret Tel Aviv search", FontSize = 18, FontAttributes = FontAttributes.Bold });
+        secretTelAvivBaseUrlEntry = AddEntry("Base URL", filter.BaseUrl);
         secretTelAvivSearchUrlEntry = AddEntry("Search URL", filter.SearchUrl);
-        AddKnownValuesHint("Use the URL produced by the site search. Known locations: Tel Aviv / Ramat Gan, Herzliya, Raanana, Haifa, Jerusalem, Beersheva. Known categories include Back End, DevOps, Front End, Full Stack, Mobile, Quality, Cyber, and Security.");
+        AddKnownValuesHint("Use the path or full URL produced by the site search. Known locations: Tel Aviv / Ramat Gan, Herzliya, Raanana, Haifa, Jerusalem, Beersheva. Known categories include Back End, DevOps, Front End, Full Stack, Mobile, Quality, Cyber, and Security.");
         secretTelAvivMaxDetailsEntry = AddEntry("Maximum detail pages per search", filter.MaxDetailsPerSearch.ToString());
     }
 
