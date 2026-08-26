@@ -180,7 +180,8 @@ public sealed class DashboardViewModel(JobWatcherSettingsStore settingsStore, Ma
             AllJobsFilter = source.AllJobsFilter,
             JobSwipeCoFilter = source.JobSwipeCoFilter,
             GlassdoorFilter = source.GlassdoorFilter,
-            SecretTelAvivFilter = source.SecretTelAvivFilter
+            SecretTelAvivFilter = source.SecretTelAvivFilter,
+            DevJobsFilter = source.DevJobsFilter
         };
     }
 
@@ -235,6 +236,7 @@ public sealed record SourceProfileSummary(string Name, string Adapter, bool Enab
             "JobSwipeCo" when source.JobSwipeCoFilter is { } filter => $"{filter.SearchUrls.Count} searches | {filter.MaxDetailsPerSearch} detail pages per search",
             "Glassdoor" when source.GlassdoorFilter is { } filter => $"{filter.SearchUrls.Count} searches | {filter.MaxPages} pages | optional",
             "SecretTelAviv" when source.SecretTelAvivFilter is { } filter => $"Search URL | {filter.MaxDetailsPerSearch} detail pages",
+            "DevJobs" when source.DevJobsFilter is { } filter => $"Search URL | {filter.MaxPages} pages | {filter.MaxDetailsPerPage} details per page",
             _ when !string.IsNullOrWhiteSpace(source.Url) => "Direct search URL",
             _ => "Configuration needs attention"
         };

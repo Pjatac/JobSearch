@@ -111,4 +111,21 @@ public sealed class SourceProfileValidatorTests
 
         Assert.True(result.IsValid);
     }
+
+    [Fact]
+    public void DevJobsAllowsRelativeSearchPathOnItsBaseUrl()
+    {
+        var result = validator.Validate(new JobSourceOptions
+        {
+            Name = "DevJobs",
+            Adapter = "DevJobs",
+            DevJobsFilter = new DevJobsFilterOptions
+            {
+                BaseUrl = "https://devjobs.co.il",
+                SearchUrl = "/jobs-grid?developerTypes=Backend&district=Hasharon"
+            }
+        });
+
+        Assert.True(result.IsValid);
+    }
 }

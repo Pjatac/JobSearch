@@ -22,6 +22,7 @@ public sealed class JobSourceOptions
     public JobSwipeCoFilterOptions? JobSwipeCoFilter { get; init; }
     public GlassdoorFilterOptions? GlassdoorFilter { get; init; }
     public SecretTelAvivFilterOptions? SecretTelAvivFilter { get; init; }
+    public DevJobsFilterOptions? DevJobsFilter { get; init; }
 }
 
 public sealed class JobKarovFilterOptions
@@ -96,4 +97,12 @@ public sealed class SecretTelAvivFilterOptions
     public string BaseUrl { get; init; } = "https://jobs.secrettelaviv.com";
     public string SearchUrl { get; init; } = "/list/find/?query=Back+End";
     public int MaxDetailsPerSearch { get; init; } = 30;
+}
+
+public sealed class DevJobsFilterOptions
+{
+    public string BaseUrl { get; init; } = "https://devjobs.co.il";
+    public string SearchUrl { get; init; } = "/jobs-grid?developerTypes=Backend&district=Hasharon";
+    public int MaxPages { get; init; } = 10;
+    public int MaxDetailsPerPage { get; init; } = 30;
 }

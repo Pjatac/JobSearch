@@ -50,6 +50,9 @@ public sealed class SourceProfileValidator
             case "SecretTelAviv":
                 ValidateSecretTelAviv(source, errors);
                 break;
+            case "DevJobs":
+                ValidateDevJobs(source, errors);
+                break;
             default:
                 errors.Add($"Unknown source adapter '{adapter}'.");
                 break;
@@ -166,6 +169,42 @@ public sealed class SourceProfileValidator
     private static bool IsSecretTelAvivUri(string? value) =>
         Uri.TryCreate(value, UriKind.Absolute, out var parsed) &&
         string.Equals(parsed.Host, "jobs.secrettelaviv.com", StringComparison.OrdinalIgnoreCase);
+
+    private static void ValidateDevJobs(JobSourceOptions source, List<string> errors)
+    {
+        if (!string.IsNullOrWhiteSpace(source.Url))
+        {
+            if (!IsDevJobsUri(source.Url))
+            {
+                errors.Add("DevJobs requires an absolute devjobs.co.il search URL.");
+            }
+
+            return;
+        }
+
+        var filter = source.DevJobsFilter;
+        if (filter is null || !IsDevJobsUri(filter.BaseUrl))
+        {
+            errors.Add("DevJobs requires an absolute devjobs.co.il base URL.");
+            return;
+        }
+
+        try
+        {
+            if (!IsDevJobsUri(Sources.DevJobs.DevJobsUrlBuilder.Build(filter, 1)))
+            {
+                errors.Add("DevJobs search URL must stay on devjobs.co.il.");
+            }
+        }
+        catch (InvalidOperationException)
+        {
+            errors.Add("DevJobs requires a search URL.");
+        }
+    }
+
+    private static bool IsDevJobsUri(string? value) =>
+        Uri.TryCreate(value, UriKind.Absolute, out var parsed) &&
+        string.Equals(parsed.Host, "devjobs.co.il", StringComparison.OrdinalIgnoreCase);
 }
 
 public sealed record SourceProfileValidationResult(

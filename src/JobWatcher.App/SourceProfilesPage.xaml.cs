@@ -1,6 +1,7 @@
 using JobWatcher.Configuration;
 using JobWatcher.Sources.AllJobs;
 using JobWatcher.Sources.Drushim;
+using JobWatcher.Sources.DevJobs;
 using JobWatcher.Sources.JobKarov;
 using JobWatcher.Sources.SecretTelAviv;
 
@@ -55,6 +56,10 @@ public partial class SourceProfilesPage : ContentPage
     private Entry? secretTelAvivBaseUrlEntry;
     private Entry? secretTelAvivSearchUrlEntry;
     private Entry? secretTelAvivMaxDetailsEntry;
+    private Entry? devJobsBaseUrlEntry;
+    private Entry? devJobsSearchUrlEntry;
+    private Entry? devJobsMaxPagesEntry;
+    private Entry? devJobsMaxDetailsEntry;
     private Label? generatedUrlLabel;
 
     public SourceProfilesPage(JobWatcherSettingsStore settingsStore)
@@ -108,6 +113,7 @@ public partial class SourceProfilesPage : ContentPage
         AddJobSwipeFields(source);
         AddGlassdoorFields(source);
         AddSecretTelAvivFields(source);
+        AddDevJobsFields(source);
         AddGeneratedUrlPreview(source);
     }
 
@@ -130,7 +136,7 @@ public partial class SourceProfilesPage : ContentPage
 
     private async void OnNewClicked(object? sender, EventArgs e)
     {
-        var adapter = await DisplayActionSheetAsync("New search profile", "Cancel", null, "JobKarov", "Drushim", "AllJobs", "JobSwipeCo", "Glassdoor", "SecretTelAviv");
+        var adapter = await DisplayActionSheetAsync("New search profile", "Cancel", null, "JobKarov", "Drushim", "AllJobs", "JobSwipeCo", "Glassdoor", "SecretTelAviv", "DevJobs");
         if (string.IsNullOrWhiteSpace(adapter) || adapter == "Cancel")
         {
             return;
@@ -221,6 +227,7 @@ public partial class SourceProfilesPage : ContentPage
             "JobSwipeCo" => new JobSourceOptions { Name = name, Adapter = adapter, JobSwipeCoFilter = new JobSwipeCoFilterOptions() },
             "Glassdoor" => new JobSourceOptions { Name = name, Adapter = adapter, Optional = true, GlassdoorFilter = new GlassdoorFilterOptions() },
             "SecretTelAviv" => new JobSourceOptions { Name = name, Adapter = adapter, SecretTelAvivFilter = new SecretTelAvivFilterOptions() },
+            "DevJobs" => new JobSourceOptions { Name = name, Adapter = adapter, DevJobsFilter = new DevJobsFilterOptions() },
             _ => throw new ArgumentOutOfRangeException(nameof(adapter))
         };
     }
@@ -253,7 +260,8 @@ public partial class SourceProfilesPage : ContentPage
             AllJobsFilter = source.AllJobsFilter,
             JobSwipeCoFilter = source.JobSwipeCoFilter,
             GlassdoorFilter = source.GlassdoorFilter,
-            SecretTelAvivFilter = source.SecretTelAvivFilter
+            SecretTelAvivFilter = source.SecretTelAvivFilter,
+            DevJobsFilter = source.DevJobsFilter
         };
     }
 
@@ -581,6 +589,46 @@ public partial class SourceProfilesPage : ContentPage
             secretTelAvivFilter = new SecretTelAvivFilterOptions { BaseUrl = baseUrl, SearchUrl = searchUrl, MaxDetailsPerSearch = maxDetails };
         }
 
+        var devJobsFilter = previous.DevJobsFilter;
+        if (string.Equals(previous.Adapter, "DevJobs", StringComparison.OrdinalIgnoreCase) &&
+            devJobsBaseUrlEntry is not null && devJobsSearchUrlEntry is not null)
+        {
+            var baseUrl = devJobsBaseUrlEntry.Text?.Trim() ?? string.Empty;
+            var searchUrl = devJobsSearchUrlEntry.Text?.Trim() ?? string.Empty;
+            var candidate = new DevJobsFilterOptions { BaseUrl = baseUrl, SearchUrl = searchUrl };
+            try
+            {
+                var resolvedUrl = DevJobsUrlBuilder.Build(candidate, 1);
+                if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out var parsedBaseUrl) ||
+                    !string.Equals(parsedBaseUrl.Host, "devjobs.co.il", StringComparison.OrdinalIgnoreCase) ||
+                    !Uri.TryCreate(resolvedUrl, UriKind.Absolute, out var parsedSearchUrl) ||
+                    !string.Equals(parsedSearchUrl.Host, "devjobs.co.il", StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new InvalidOperationException();
+                }
+            }
+            catch (InvalidOperationException)
+            {
+                await DisplayAlertAsync("Check the profile", "DevJobs needs a devjobs.co.il base URL and a search path or URL on the same host.", "OK");
+                return false;
+            }
+
+            if (!TryParseInt(devJobsMaxPagesEntry?.Text, out var maxPages) || maxPages <= 0 ||
+                !TryParseInt(devJobsMaxDetailsEntry?.Text, out var maxDetails) || maxDetails < 0)
+            {
+                await DisplayAlertAsync("Check the profile", "DevJobs maximum pages must be positive and maximum detail pages must be zero or greater.", "OK");
+                return false;
+            }
+
+            devJobsFilter = new DevJobsFilterOptions
+            {
+                BaseUrl = baseUrl,
+                SearchUrl = searchUrl,
+                MaxPages = maxPages,
+                MaxDetailsPerPage = maxDetails
+            };
+        }
+
         sources[selectedIndex] = new JobSourceOptions
         {
             Name = name,
@@ -595,7 +643,8 @@ public partial class SourceProfilesPage : ContentPage
             AllJobsFilter = allJobsFilter,
             JobSwipeCoFilter = jobSwipeFilter,
             GlassdoorFilter = glassdoorFilter,
-            SecretTelAvivFilter = secretTelAvivFilter
+            SecretTelAvivFilter = secretTelAvivFilter,
+            DevJobsFilter = devJobsFilter
         };
         return true;
     }
@@ -727,6 +776,23 @@ public partial class SourceProfilesPage : ContentPage
         secretTelAvivSearchUrlEntry = AddEntry("Search URL", filter.SearchUrl);
         AddKnownValuesHint("Use the path or full URL produced by the site search. Known locations: Tel Aviv / Ramat Gan, Herzliya, Raanana, Haifa, Jerusalem, Beersheva. Known categories include Back End, DevOps, Front End, Full Stack, Mobile, Quality, Cyber, and Security.");
         secretTelAvivMaxDetailsEntry = AddEntry("Maximum detail pages per search", filter.MaxDetailsPerSearch.ToString());
+    }
+
+    private void AddDevJobsFields(JobSourceOptions source)
+    {
+        if (!string.Equals(source.Adapter, "DevJobs", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var filter = source.DevJobsFilter ?? new DevJobsFilterOptions();
+        Editor.Children.Add(new BoxView { HeightRequest = 1, Margin = new Thickness(0, 8), BackgroundColor = Colors.LightGray });
+        Editor.Children.Add(new Label { Text = "DevJobs search", FontSize = 18, FontAttributes = FontAttributes.Bold });
+        devJobsBaseUrlEntry = AddEntry("Base URL", filter.BaseUrl);
+        devJobsSearchUrlEntry = AddEntry("Search URL", filter.SearchUrl);
+        AddKnownValuesHint("Use the path or full URL produced by the DevJobs filters. The collector requests numbered pages automatically.");
+        devJobsMaxPagesEntry = AddEntry("Maximum pages", filter.MaxPages.ToString());
+        devJobsMaxDetailsEntry = AddEntry("Maximum detail pages per result page", filter.MaxDetailsPerPage.ToString());
     }
 
     private void AddKnownValuesHint(string text)

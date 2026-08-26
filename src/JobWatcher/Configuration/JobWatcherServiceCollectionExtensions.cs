@@ -6,6 +6,7 @@ using JobWatcher.Services;
 using JobWatcher.Sources;
 using JobWatcher.Sources.AllJobs;
 using JobWatcher.Sources.Drushim;
+using JobWatcher.Sources.DevJobs;
 using JobWatcher.Sources.Glassdoor;
 using JobWatcher.Sources.JobKarov;
 using JobWatcher.Sources.JobSwipeCo;
@@ -28,12 +29,14 @@ public static class JobWatcherServiceCollectionExtensions
         services.AddSingleton<GlassdoorHtmlParser>();
         services.AddSingleton<GlassdoorApiParser>();
         services.AddSingleton<SecretTelAvivHtmlParser>();
+        services.AddSingleton<DevJobsHtmlParser>();
         services.AddSingleton<IJobSource, JobKarovSource>();
         services.AddSingleton<IJobSource, AllJobsSource>();
         services.AddSingleton<IJobSource, DrushimSource>();
         services.AddSingleton<IJobSource, JobSwipeCoSource>();
         services.AddSingleton<IJobSource, GlassdoorSource>();
         services.AddSingleton<IJobSource, SecretTelAvivSource>();
+        services.AddSingleton<IJobSource, DevJobsSource>();
         services.AddSingleton<ISnapshotStore, JsonSnapshotStore>();
         services.AddSingleton<JobComparisonService>();
         services.AddSingleton<JobClassificationService>();
@@ -50,6 +53,7 @@ public static class JobWatcherServiceCollectionExtensions
             .ConfigurePrimaryHttpMessageHandler(provider => CreateGlassdoorHandler(provider))
             .SetHandlerLifetime(Timeout.InfiniteTimeSpan);
         AddBrowserTlsClient(services, SecretTelAvivSource.HttpClientName);
+        AddBrowserTlsClient(services, DevJobsSource.HttpClientName);
         return services;
     }
 

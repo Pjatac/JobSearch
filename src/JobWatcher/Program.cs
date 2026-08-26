@@ -7,6 +7,7 @@ using JobWatcher.Services;
 using JobWatcher.Sources;
 using JobWatcher.Sources.AllJobs;
 using JobWatcher.Sources.Drushim;
+using JobWatcher.Sources.DevJobs;
 using JobWatcher.Sources.Glassdoor;
 using JobWatcher.Sources.JobKarov;
 using JobWatcher.Sources.JobSwipeCo;
@@ -30,12 +31,14 @@ builder.Services.AddSingleton<JobSwipeCoJsonLdParser>();
 builder.Services.AddSingleton<GlassdoorHtmlParser>();
 builder.Services.AddSingleton<GlassdoorApiParser>();
 builder.Services.AddSingleton<SecretTelAvivHtmlParser>();
+builder.Services.AddSingleton<DevJobsHtmlParser>();
 builder.Services.AddSingleton<IJobSource, JobKarovSource>();
 builder.Services.AddSingleton<IJobSource, AllJobsSource>();
 builder.Services.AddSingleton<IJobSource, DrushimSource>();
 builder.Services.AddSingleton<IJobSource, JobSwipeCoSource>();
 builder.Services.AddSingleton<IJobSource, GlassdoorSource>();
 builder.Services.AddSingleton<IJobSource, SecretTelAvivSource>();
+builder.Services.AddSingleton<IJobSource, DevJobsSource>();
 builder.Services.AddSingleton<ISnapshotStore, JsonSnapshotStore>();
 builder.Services.AddSingleton<JobComparisonService>();
 builder.Services.AddSingleton<JobClassificationService>();
@@ -99,6 +102,8 @@ builder.Services
     .AddHttpClient(SecretTelAvivSource.HttpClientName)
     .ConfigurePrimaryHttpMessageHandler(() => new TlsClientMessageHandler(BrowserSessionOptions.Chrome133Navigation()))
     .SetHandlerLifetime(Timeout.InfiniteTimeSpan);
+
+builder.Services.AddBrowserTlsClient(DevJobsSource.HttpClientName);
 
 // Glassdoor rejects the default .NET TLS fingerprint with 403 plus an anti-bot challenge page,
 // so this is the one source that goes through TlsClient's browser-fingerprinted handler. No
