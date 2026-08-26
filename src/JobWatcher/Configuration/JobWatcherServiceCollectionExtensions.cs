@@ -49,9 +49,7 @@ public static class JobWatcherServiceCollectionExtensions
         services.AddHttpClient(GlassdoorSource.HttpClientName)
             .ConfigurePrimaryHttpMessageHandler(provider => CreateGlassdoorHandler(provider))
             .SetHandlerLifetime(Timeout.InfiniteTimeSpan);
-        services.AddHttpClient(SecretTelAvivSource.HttpClientName)
-            .ConfigurePrimaryHttpMessageHandler(() => new TlsClientMessageHandler(BrowserSessionOptions.Chrome133Navigation()))
-            .SetHandlerLifetime(Timeout.InfiniteTimeSpan);
+        AddBrowserTlsClient(services, SecretTelAvivSource.HttpClientName);
         return services;
     }
 
@@ -69,6 +67,13 @@ public static class JobWatcherServiceCollectionExtensions
             UseCookies = useCookies,
             CookieContainer = new CookieContainer()
         });
+    }
+
+    public static IHttpClientBuilder AddBrowserTlsClient(this IServiceCollection services, string name)
+    {
+        return services.AddHttpClient(name)
+            .ConfigurePrimaryHttpMessageHandler(() => new TlsClientMessageHandler(BrowserSessionOptions.Chrome133Navigation()))
+            .SetHandlerLifetime(Timeout.InfiniteTimeSpan);
     }
 
     private static TlsClientMessageHandler CreateGlassdoorHandler(IServiceProvider provider)
