@@ -46,14 +46,21 @@ JobKarov parameters are independent from Drushim parameters.
 - C# role: `2155`
 - Software Engineer role: `3131`
 - Senior Programmer role: `2177` (additional catcher, not the primary focus)
-- Hasharon area: `50`
-- Center area: `70`
+- optional search text is sent as `query`, for example `C# .Net`
+- areas use one JobKarov region/city catalog; Hasharon region is `50`, Center region is `70`,
+  Netanya area is `53`, and Raanana/Kfar Saba is `56`
 - page size: `2`
 
 Configured JobKarov URL shape:
 
 ```text
 https://www.jobkarov.com/Search/?speciality=<category>&role=3893,2163,2155,3131,2177&area=50,70&size=2
+```
+
+JobKarov can also run a keyword search without a selected category:
+
+```text
+https://www.jobkarov.com/Search/?query=C%23+.Net&area=53&size=2
 ```
 
 ### Drushim
@@ -252,6 +259,7 @@ page (`specialInterestLabel`, `cyberSignals`, and `farCommuteLocations`).
         "Adapter": "JobKarov",
         "Enabled": true,
         "JobKarovFilter": {
+          "Query": "",
           "Specialities": [ "2119", "3921", "1857" ],
           "Speciality": "",
           "Roles": [ "3893", "2163", "2155", "3131", "2177" ],
