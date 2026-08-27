@@ -34,82 +34,89 @@ public sealed class DevJobsSource(
             var jobCardCount = 0;
             string? latestSearchHtml = null;
 
-            if (!string.IsNullOrWhiteSpace(filter.NameFilter))
+            var scopes = !string.IsNullOrWhiteSpace(options.Url)
+                ? new[] { new DevJobsSearchScope(null, null) }
+                : DevJobsUrlBuilder.GetSearchScopes(filter);
+            foreach (var scope in scopes)
             {
-                var initialUrl = !string.IsNullOrWhiteSpace(options.Url) ? options.Url : DevJobsUrlBuilder.Build(filter, 1);
-                logger.LogInformation("Fetching DevJobs source {Source} before applying text search from {Url}", options.Name, initialUrl);
-                using var initialResponse = await client.GetAsync(initialUrl, cancellationToken);
-                latestSearchHtml = await initialResponse.Content.ReadAsStringAsync(cancellationToken);
-                if (!initialResponse.IsSuccessStatusCode)
+                if (!string.IsNullOrWhiteSpace(filter.NameFilter))
                 {
-                    await SaveDiagnosticHtmlAsync(latestSearchHtml, options.Name, collectedAtUtc, cancellationToken);
-                    return Failed(options.Name, warnings, $"HTTP {(int)initialResponse.StatusCode} {initialResponse.ReasonPhrase}");
+                    var initialUrl = !string.IsNullOrWhiteSpace(options.Url) ? options.Url : DevJobsUrlBuilder.Build(filter, 1, scope);
+                    logger.LogInformation("Fetching DevJobs source {Source} before applying text search from {Url}", options.Name, initialUrl);
+                    using var initialResponse = await client.GetAsync(initialUrl, cancellationToken);
+                    latestSearchHtml = await initialResponse.Content.ReadAsStringAsync(cancellationToken);
+                    if (!initialResponse.IsSuccessStatusCode)
+                    {
+                        await SaveDiagnosticHtmlAsync(latestSearchHtml, options.Name, collectedAtUtc, cancellationToken);
+                        return Failed(options.Name, warnings, $"HTTP {(int)initialResponse.StatusCode} {initialResponse.ReasonPhrase}");
+                    }
+
+                    var session = parser.ParseLivewireSession(latestSearchHtml);
+                    var endpoint = new Uri(new Uri(filter.BaseUrl.TrimEnd('/') + "/"), "livewire/update");
+                    using var searchRequest = DevJobsLivewireRequestFactory.CreateSearchRequest(endpoint, session, filter.NameFilter);
+                    searchRequest.Headers.Referrer = new Uri(initialUrl);
+                    logger.LogInformation("Applying DevJobs text search for source {Source}", options.Name);
+                    using var searchResponse = await client.SendAsync(searchRequest, cancellationToken);
+                    var responseJson = await searchResponse.Content.ReadAsStringAsync(cancellationToken);
+                    if (!searchResponse.IsSuccessStatusCode)
+                    {
+                        return Failed(options.Name, warnings, $"DevJobs text search returned HTTP {(int)searchResponse.StatusCode} {searchResponse.ReasonPhrase}");
+                    }
+
+                    var livewire = parser.ParseLivewireResponse(responseJson);
+                    session = session with { Snapshot = livewire.Snapshot };
+                    latestSearchHtml = livewire.Html;
+
+                    for (var page = 1; page <= maxPages; page++)
+                    {
+                        var search = parser.ParseSearch(latestSearchHtml, options.Name, collectedAtUtc);
+                        warnings.AddRange(search.Warnings);
+                        jobCardCount += search.JobCardCount;
+                        await AddPageVacanciesAsync(client, search.Vacancies, maxDetails, vacancies, options.Name, collectedAtUtc, warnings, cancellationToken);
+                        if (!search.HasNextPage)
+                        {
+                            break;
+                        }
+
+                        using var pageRequest = DevJobsLivewireRequestFactory.CreatePageRequest(endpoint, session, page + 1);
+                        pageRequest.Headers.Referrer = new Uri(initialUrl);
+                        using var pageResponse = await client.SendAsync(pageRequest, cancellationToken);
+                        var pageJson = await pageResponse.Content.ReadAsStringAsync(cancellationToken);
+                        if (!pageResponse.IsSuccessStatusCode)
+                        {
+                            return Failed(options.Name, warnings, $"DevJobs page {page + 1} returned HTTP {(int)pageResponse.StatusCode} {pageResponse.ReasonPhrase}");
+                        }
+
+                        livewire = parser.ParseLivewireResponse(pageJson);
+                        session = session with { Snapshot = livewire.Snapshot };
+                        latestSearchHtml = livewire.Html;
+                    }
+
+                    continue;
                 }
 
-                var session = parser.ParseLivewireSession(latestSearchHtml);
-                var endpoint = new Uri(new Uri(filter.BaseUrl.TrimEnd('/') + "/"), "livewire/update");
-                using var searchRequest = DevJobsLivewireRequestFactory.CreateSearchRequest(endpoint, session, filter.NameFilter);
-                searchRequest.Headers.Referrer = new Uri(initialUrl);
-                logger.LogInformation("Applying DevJobs text search for source {Source}", options.Name);
-                using var searchResponse = await client.SendAsync(searchRequest, cancellationToken);
-                var responseJson = await searchResponse.Content.ReadAsStringAsync(cancellationToken);
-                if (!searchResponse.IsSuccessStatusCode)
-                {
-                    return Failed(options.Name, warnings, $"DevJobs text search returned HTTP {(int)searchResponse.StatusCode} {searchResponse.ReasonPhrase}");
-                }
-
-                var livewire = parser.ParseLivewireResponse(responseJson);
-                session = session with { Snapshot = livewire.Snapshot };
-                latestSearchHtml = livewire.Html;
                 for (var page = 1; page <= maxPages; page++)
                 {
-                    var search = parser.ParseSearch(latestSearchHtml, options.Name, collectedAtUtc);
+                    var searchUrl = !string.IsNullOrWhiteSpace(options.Url) ? options.Url : DevJobsUrlBuilder.Build(filter, page, scope);
+                    logger.LogInformation("Fetching DevJobs source {Source}, page {Page} from {Url}", options.Name, page, searchUrl);
+                    using var response = await client.GetAsync(searchUrl, cancellationToken);
+                    var html = await response.Content.ReadAsStringAsync(cancellationToken);
+                    latestSearchHtml = html;
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        await SaveDiagnosticHtmlAsync(html, options.Name, collectedAtUtc, cancellationToken);
+                        return Failed(options.Name, warnings, $"HTTP {(int)response.StatusCode} {response.ReasonPhrase}");
+                    }
+
+                    var search = parser.ParseSearch(html, options.Name, collectedAtUtc);
                     warnings.AddRange(search.Warnings);
                     jobCardCount += search.JobCardCount;
                     await AddPageVacanciesAsync(client, search.Vacancies, maxDetails, vacancies, options.Name, collectedAtUtc, warnings, cancellationToken);
+
                     if (!search.HasNextPage)
                     {
                         break;
                     }
-
-                    using var pageRequest = DevJobsLivewireRequestFactory.CreatePageRequest(endpoint, session, page + 1);
-                    pageRequest.Headers.Referrer = new Uri(initialUrl);
-                    using var pageResponse = await client.SendAsync(pageRequest, cancellationToken);
-                    var pageJson = await pageResponse.Content.ReadAsStringAsync(cancellationToken);
-                    if (!pageResponse.IsSuccessStatusCode)
-                    {
-                        return Failed(options.Name, warnings, $"DevJobs page {page + 1} returned HTTP {(int)pageResponse.StatusCode} {pageResponse.ReasonPhrase}");
-                    }
-
-                    livewire = parser.ParseLivewireResponse(pageJson);
-                    session = session with { Snapshot = livewire.Snapshot };
-                    latestSearchHtml = livewire.Html;
-                }
-
-                return await Complete(options, warnings, vacancies.Values, jobCardCount, latestSearchHtml, collectedAtUtc, cancellationToken);
-            }
-
-            for (var page = 1; page <= maxPages; page++)
-            {
-                var searchUrl = !string.IsNullOrWhiteSpace(options.Url) ? options.Url : DevJobsUrlBuilder.Build(filter, page);
-                logger.LogInformation("Fetching DevJobs source {Source}, page {Page} from {Url}", options.Name, page, searchUrl);
-                using var response = await client.GetAsync(searchUrl, cancellationToken);
-                var html = await response.Content.ReadAsStringAsync(cancellationToken);
-                latestSearchHtml = html;
-                if (!response.IsSuccessStatusCode)
-                {
-                    await SaveDiagnosticHtmlAsync(html, options.Name, collectedAtUtc, cancellationToken);
-                    return Failed(options.Name, warnings, $"HTTP {(int)response.StatusCode} {response.ReasonPhrase}");
-                }
-
-                var search = parser.ParseSearch(html, options.Name, collectedAtUtc);
-                warnings.AddRange(search.Warnings);
-                jobCardCount += search.JobCardCount;
-                await AddPageVacanciesAsync(client, search.Vacancies, maxDetails, vacancies, options.Name, collectedAtUtc, warnings, cancellationToken);
-
-                if (!search.HasNextPage)
-                {
-                    break;
                 }
             }
 

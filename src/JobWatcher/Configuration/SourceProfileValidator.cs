@@ -72,9 +72,11 @@ public sealed class SourceProfileValidator
         {
             errors.Add("JobKarov requires a direct URL or structured filters.");
         }
-        else if (string.IsNullOrWhiteSpace(source.JobKarovFilter.Speciality))
+        else if (source.JobKarovFilter.Specialities.Count == 0 &&
+                 string.IsNullOrWhiteSpace(source.JobKarovFilter.Speciality) &&
+                 string.IsNullOrWhiteSpace(source.JobKarovFilter.Query))
         {
-            errors.Add("JobKarov speciality ID is required for structured filters.");
+            errors.Add("JobKarov requires at least one speciality or search query for structured filters.");
         }
     }
 

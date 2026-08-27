@@ -3,7 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="JobWatcher.App.SourceProfilesPage"
              Title="Search profiles">
-    <Grid Padding="24" ColumnDefinitions="340,*" ColumnSpacing="20">
+    <Grid x:Name="Root" Padding="24" ColumnDefinitions="340,*" ColumnSpacing="20">
         <Grid RowDefinitions="Auto,*" RowSpacing="12">
             <Grid ColumnDefinitions="*,Auto">
                 <Label Text="Search profiles" FontSize="22" FontAttributes="Bold" />
@@ -34,5 +34,62 @@
                 <Label Text="Select a profile" FontSize="20" TextColor="{StaticResource Gray500}" />
             </VerticalStackLayout>
         </ScrollView>
+
+        <Grid x:Name="JobKarovCategoriesDialog" Grid.ColumnSpan="2" BackgroundColor="#80000000" IsVisible="False" Padding="24">
+            <Border BackgroundColor="{AppThemeBinding Light=White, Dark=#202020}" Stroke="{StaticResource Gray300}" StrokeShape="RoundRectangle 8" MaximumWidthRequest="1100" HorizontalOptions="Center" VerticalOptions="Fill">
+                <Grid Padding="24" RowDefinitions="Auto,Auto,Auto,*,Auto" RowSpacing="16">
+                    <Label Text="JobKarov categories" FontSize="22" FontAttributes="Bold" />
+                    <Label Grid.Row="1" Text="Each selected category is requested separately, then vacancies are combined." TextColor="{StaticResource Gray500}" />
+                    <HorizontalStackLayout Grid.Row="2" Spacing="8">
+                        <Button Text="Select all" Clicked="OnSelectAllJobKarovCategoriesClicked" />
+                        <Button Text="Clear" Clicked="OnClearJobKarovCategoriesClicked" />
+                    </HorizontalStackLayout>
+                    <CollectionView x:Name="JobKarovCategoriesColumns" Grid.Row="3" SelectionMode="None">
+                        <CollectionView.ItemsLayout><GridItemsLayout Orientation="Vertical" Span="3" HorizontalItemSpacing="20" VerticalItemSpacing="6" /></CollectionView.ItemsLayout>
+                        <CollectionView.ItemTemplate><DataTemplate><HorizontalStackLayout Spacing="4"><CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}" /><Label Text="{Binding DisplayName}" VerticalOptions="Center" LineBreakMode="WordWrap" /></HorizontalStackLayout></DataTemplate></CollectionView.ItemTemplate>
+                    </CollectionView>
+                    <HorizontalStackLayout Grid.Row="4" HorizontalOptions="End" Spacing="8">
+                        <Button Text="Cancel" Clicked="OnCancelJobKarovCategoriesClicked" />
+                        <Button Text="Done" Clicked="OnDoneJobKarovCategoriesClicked" />
+                    </HorizontalStackLayout>
+                </Grid>
+            </Border>
+        </Grid>
+        <Grid x:Name="JobKarovRolesDialog" Grid.ColumnSpan="2" BackgroundColor="#80000000" IsVisible="False" Padding="24">
+            <Border BackgroundColor="{AppThemeBinding Light=White, Dark=#202020}" Stroke="{StaticResource Gray300}" StrokeShape="RoundRectangle 8" MaximumWidthRequest="1100" HorizontalOptions="Center" VerticalOptions="Fill">
+                <Grid Padding="24" RowDefinitions="Auto,Auto,Auto,*,Auto" RowSpacing="16">
+                    <Label Text="JobKarov roles" FontSize="22" FontAttributes="Bold" />
+                    <SearchBar x:Name="JobKarovRoleSearch" Grid.Row="1" Placeholder="Search role, category, or ID" TextChanged="OnJobKarovRoleSearchTextChanged" />
+                    <HorizontalStackLayout Grid.Row="2"><Button Text="Clear" Clicked="OnClearJobKarovRolesClicked" /></HorizontalStackLayout>
+                    <CollectionView x:Name="JobKarovRolesList" Grid.Row="3" SelectionMode="None" IsGrouped="True">
+                        <CollectionView.ItemsLayout><GridItemsLayout Orientation="Vertical" Span="3" HorizontalItemSpacing="20" VerticalItemSpacing="6" /></CollectionView.ItemsLayout>
+                        <CollectionView.GroupHeaderTemplate><DataTemplate><Label Text="{Binding Category}" FontAttributes="Bold" Margin="0,10,0,4" /></DataTemplate></CollectionView.GroupHeaderTemplate>
+                        <CollectionView.ItemTemplate><DataTemplate><HorizontalStackLayout Spacing="4"><CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}" /><Label Text="{Binding DisplayName}" VerticalOptions="Center" LineBreakMode="WordWrap" /></HorizontalStackLayout></DataTemplate></CollectionView.ItemTemplate>
+                    </CollectionView>
+                    <HorizontalStackLayout Grid.Row="4" HorizontalOptions="End" Spacing="8"><Button Text="Cancel" Clicked="OnCancelJobKarovRolesClicked" /><Button Text="Done" Clicked="OnDoneJobKarovRolesClicked" /></HorizontalStackLayout>
+                </Grid>
+            </Border>
+        </Grid>
+        <Grid x:Name="JobKarovAreasDialog" Grid.ColumnSpan="2" BackgroundColor="#80000000" IsVisible="False" Padding="24">
+            <Border BackgroundColor="{AppThemeBinding Light=White, Dark=#202020}" Stroke="{StaticResource Gray300}" StrokeShape="RoundRectangle 8" MaximumWidthRequest="1100" HorizontalOptions="Center" VerticalOptions="Fill">
+                <Grid Padding="24" RowDefinitions="Auto,Auto,Auto,*,Auto" RowSpacing="16">
+                    <Label Text="JobKarov locations" FontSize="22" FontAttributes="Bold" />
+                    <SearchBar x:Name="JobKarovAreaSearch" Grid.Row="1" Placeholder="Search region, city, or ID" TextChanged="OnJobKarovAreaSearchTextChanged" />
+                    <HorizontalStackLayout Grid.Row="2" Spacing="8">
+                        <Button Text="Select all" Clicked="OnSelectAllJobKarovAreasClicked" />
+                        <Button Text="Clear" Clicked="OnClearJobKarovAreasClicked" />
+                    </HorizontalStackLayout>
+                    <CollectionView x:Name="JobKarovAreasList" Grid.Row="3" SelectionMode="None" IsGrouped="True">
+                        <CollectionView.ItemsLayout><GridItemsLayout Orientation="Vertical" Span="3" HorizontalItemSpacing="20" VerticalItemSpacing="6" /></CollectionView.ItemsLayout>
+                        <CollectionView.GroupHeaderTemplate><DataTemplate><Label Text="{Binding Region}" FontAttributes="Bold" Margin="0,10,0,4" /></DataTemplate></CollectionView.GroupHeaderTemplate>
+                        <CollectionView.ItemTemplate><DataTemplate><HorizontalStackLayout Spacing="4"><CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}" /><Label Text="{Binding DisplayName}" VerticalOptions="Center" LineBreakMode="WordWrap" /></HorizontalStackLayout></DataTemplate></CollectionView.ItemTemplate>
+                    </CollectionView>
+                    <HorizontalStackLayout Grid.Row="4" HorizontalOptions="End" Spacing="8">
+                        <Button Text="Cancel" Clicked="OnCancelJobKarovAreasClicked" />
+                        <Button Text="Done" Clicked="OnDoneJobKarovAreasClicked" />
+                    </HorizontalStackLayout>
+                </Grid>
+            </Border>
+        </Grid>
     </Grid>
 </ContentPage>

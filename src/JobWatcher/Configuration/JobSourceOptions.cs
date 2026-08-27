@@ -28,7 +28,10 @@ public sealed class JobSourceOptions
 public sealed class JobKarovFilterOptions
 {
     public string BaseUrl { get; init; } = "https://www.jobkarov.com/Search/";
-    public required string Speciality { get; init; }
+    public string Query { get; init; } = string.Empty;
+    public IReadOnlyList<string> Specialities { get; init; } = [];
+    // Retained so existing user settings continue to work after the move to multi-select categories.
+    public string Speciality { get; init; } = string.Empty;
     public IReadOnlyList<string> Roles { get; init; } = [];
     public IReadOnlyList<string> Areas { get; init; } = [];
     public int Size { get; init; } = 2;
@@ -103,6 +106,12 @@ public sealed class DevJobsFilterOptions
 {
     public string BaseUrl { get; init; } = "https://devjobs.co.il";
     public string SearchUrl { get; init; } = "/jobs-grid?developerTypes=Backend&district=Hasharon";
+    public bool UseSearchUrlOverride { get; init; }
+    public IReadOnlyList<string> DeveloperTypes { get; init; } = [];
+    public IReadOnlyList<string> Districts { get; init; } = [];
+    public IReadOnlyList<string> Cities { get; init; } = [];
+    // Retained only so existing user settings migrate into the new multi-district UI.
+    public string? District { get; init; }
     public string? NameFilter { get; init; }
     public int MaxPages { get; init; } = 10;
     public int MaxDetailsPerPage { get; init; } = 30;

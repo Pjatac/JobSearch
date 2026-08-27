@@ -40,9 +40,7 @@ The current search is aimed at Backend/.NET/C# roles in Center + Hasharon. It is
 
 JobKarov parameters are independent from Drushim parameters.
 
-- software speciality: `2119`
-- cybersecurity speciality: `3921`
-- information systems speciality: `1857`
+- default categories: software `2119`, cybersecurity `3921`, and information systems `1857`
 - Backend role: `3893`
 - .NET role: `2163`
 - C# role: `2155`
@@ -55,7 +53,7 @@ JobKarov parameters are independent from Drushim parameters.
 Configured JobKarov URL shape:
 
 ```text
-https://www.jobkarov.com/Search/?speciality=<speciality>&role=3893,2163,2155,3131,2177&area=50,70&size=2
+https://www.jobkarov.com/Search/?speciality=<category>&role=3893,2163,2155,3131,2177&area=50,70&size=2
 ```
 
 ### Drushim
@@ -237,6 +235,12 @@ description prefix inspected by the classifier. Changes take effect on the next 
 rewrite historical snapshots. Each source output has `classificationSummary`, while every member
 of `newJobs` carries its own `classification`, `reasons`, and `flags`.
 
+In the MAUI app, the Results page has two optional quick filters over already collected jobs:
+`Cyber / security` keeps only jobs whose classification has the special-interest flag, and
+`Long commute` keeps only jobs whose classification has the far-commute flag. They do not alter
+the requests sent to job sites. Their labels and signals are configured through the Classification
+page (`specialInterestLabel`, `cyberSignals`, and `farCommuteLocations`).
+
 ```json
 {
   "JobWatcher": {
@@ -244,11 +248,12 @@ of `newJobs` carries its own `classification`, `reasons`, and `flags`.
     "RequestTimeoutSeconds": 30,
     "Sources": [
       {
-        "Name": "JobKarov-Software",
+        "Name": "JobKarov-Backend",
         "Adapter": "JobKarov",
         "Enabled": true,
         "JobKarovFilter": {
-          "Speciality": "2119",
+          "Specialities": [ "2119", "3921", "1857" ],
+          "Speciality": "",
           "Roles": [ "3893", "2163", "2155", "3131", "2177" ],
           "Areas": [ "50", "70" ],
           "Size": 2

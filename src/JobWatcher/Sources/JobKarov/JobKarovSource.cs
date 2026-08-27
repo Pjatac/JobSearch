@@ -22,36 +22,66 @@ public sealed class JobKarovSource(
 
         try
         {
-            var url = JobKarovUrlBuilder.Build(options);
-            logger.LogInformation("Fetching source {Source} from {Url}", options.Name, url);
             using var client = httpClientFactory.CreateClient(HttpClientName);
             client.Timeout = TimeSpan.FromSeconds(Math.Max(1, watcherOptions.Value.RequestTimeoutSeconds));
-
-            using var response = await client.GetAsync(url, cancellationToken);
-            var responseBytes = await response.Content.ReadAsByteArrayAsync(cancellationToken);
-            var html = Encoding.UTF8.GetString(responseBytes);
-            logger.LogInformation("Source {Source} HTTP {StatusCode}, response size {ResponseSize}", options.Name, (int)response.StatusCode, responseBytes.Length);
-
-            if (!response.IsSuccessStatusCode)
+            var specialities = string.IsNullOrWhiteSpace(options.Url)
+                ? JobKarovUrlBuilder.GetSpecialities(options)
+                : new[] { string.Empty };
+            if (specialities.Count == 0)
             {
-                await SaveDiagnosticHtmlAsync(html, options.Name, collectedAtUtc, cancellationToken);
-                return Failed(options.Name, warnings, $"HTTP {(int)response.StatusCode} {response.ReasonPhrase}");
+                specialities = !string.IsNullOrWhiteSpace(options.JobKarovFilter?.Query)
+                    ? [string.Empty]
+                    : [];
             }
 
-            var parseResult = parser.Parse(html, options.Name, collectedAtUtc);
-            warnings.AddRange(parseResult.Warnings);
-            logger.LogInformation(
-                "Source {Source}: JSON-LD blocks {JsonLdBlocks}, JobPosting objects {JobPostings}, deduplicated vacancies {VacancyCount}, requirements merged {RequirementsMerged}",
-                options.Name,
-                parseResult.JsonLdBlockCount,
-                parseResult.JobPostingObjectCount,
-                parseResult.Vacancies.Count,
-                parseResult.RequirementsMergedCount);
-
-            if (parseResult.Vacancies.Count == 0 || parseResult.Vacancies.Count < options.MinimumExpectedVacancies)
+            if (specialities.Count == 0)
             {
-                await SaveDiagnosticHtmlAsync(html, options.Name, collectedAtUtc, cancellationToken);
-                return Failed(options.Name, warnings, $"Parsed {parseResult.Vacancies.Count} vacancies, below minimum {options.MinimumExpectedVacancies}.");
+                return Failed(options.Name, warnings, "No JobKarov categories or search query are selected.");
+            }
+
+            var vacancies = new Dictionary<string, JobVacancy>(StringComparer.OrdinalIgnoreCase);
+            string? latestHtml = null;
+
+            foreach (var speciality in specialities)
+            {
+                var url = JobKarovUrlBuilder.Build(options, speciality);
+                logger.LogInformation("Fetching JobKarov source {Source}, speciality {Speciality} from {Url}", options.Name, speciality, url);
+                using var response = await client.GetAsync(url, cancellationToken);
+                var responseBytes = await response.Content.ReadAsByteArrayAsync(cancellationToken);
+                var html = Encoding.UTF8.GetString(responseBytes);
+                latestHtml = html;
+                logger.LogInformation("JobKarov source {Source}, speciality {Speciality}: HTTP {StatusCode}, response size {ResponseSize}", options.Name, speciality, (int)response.StatusCode, responseBytes.Length);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    await SaveDiagnosticHtmlAsync(html, options.Name, collectedAtUtc, cancellationToken);
+                    return Failed(options.Name, warnings, $"JobKarov speciality {speciality}: HTTP {(int)response.StatusCode} {response.ReasonPhrase}");
+                }
+
+                var parseResult = parser.Parse(html, options.Name, collectedAtUtc);
+                warnings.AddRange(parseResult.Warnings);
+                logger.LogInformation(
+                    "JobKarov source {Source}, speciality {Speciality}: JSON-LD blocks {JsonLdBlocks}, JobPosting objects {JobPostings}, parsed vacancies {VacancyCount}, requirements merged {RequirementsMerged}",
+                    options.Name,
+                    speciality,
+                    parseResult.JsonLdBlockCount,
+                    parseResult.JobPostingObjectCount,
+                    parseResult.Vacancies.Count,
+                    parseResult.RequirementsMergedCount);
+                foreach (var vacancy in parseResult.Vacancies)
+                {
+                    vacancies.TryAdd(vacancy.ExternalId, vacancy);
+                }
+            }
+
+            if (vacancies.Count < options.MinimumExpectedVacancies)
+            {
+                if (latestHtml is not null)
+                {
+                    await SaveDiagnosticHtmlAsync(latestHtml, options.Name, collectedAtUtc, cancellationToken);
+                }
+
+                return Failed(options.Name, warnings, $"Parsed {vacancies.Count} vacancies, below minimum {options.MinimumExpectedVacancies}.");
             }
 
             return new SourceRunResult
@@ -62,7 +92,7 @@ public sealed class JobKarovSource(
                 {
                     Source = options.Name,
                     CollectedAtUtc = collectedAtUtc,
-                    Vacancies = parseResult.Vacancies
+                    Vacancies = vacancies.Values.OrderBy(vacancy => vacancy.ExternalId, StringComparer.OrdinalIgnoreCase).ToList()
                 },
                 Warnings = warnings
             };

@@ -9,6 +9,25 @@ namespace JobWatcher.App;
 
 public partial class SourceProfilesPage : ContentPage
 {
+    private static readonly string[] DevJobsDeveloperTypes = ["Software", "Frontend", "Backend", "Full Stack", "Mobile", "Game", "AI/ML", "Data & Analytics", "Cloud/DevOps", "Embedded"];
+    private static readonly string[] DevJobsDistricts = ["Beer Sheva & South", "Eilat", "Haifa & North", "Hasharon", "Jerusalem", "Shfela", "Tel Aviv & Center"];
+    private static readonly string[] DevJobsCities = ["Ashdod", "Ashkelon", "Be'er Sheva", "Beer Yaakov", "Binyamina", "Caesarea", "Dimona", "Even Yehuda", "Ganei Tikva", "Givat Shmuel", "Givatayim", "Hadera", "Haifa", "Hatzerim", "Herzliya", "Hod HaSharon", "Holon", "Jerusalem", "Kadima - Zoran", "Karmiel", "Kfar Netter", "Kfar Saba", "Kiryat Ata", "Kiryat Bialik", "Kiryat Gat", "Kiryat Ono", "Lod", "Migdal HaEmek", "Migdal Tefen", "Modi'in-Maccabim-Reut", "Nes Ziona", "Netanya", "Or Yehuda", "Petah Tikva", "Raanana", "Ramat Gan", "Ramat Ha-Sharon", "Rehovot", "Rishon Le Zion", "Rosh HaAyin", "Tel Aviv", "Tel Aviv-Yafo", "Tirat Carmel", "Yavne", "Yehud Monosson", "Yokneam Ilit"];
+    private static readonly JobKarovCategory[] JobKarovCategories =
+    [
+        new("3921", "אבטחת מידע וסייבר"), new("1494", "אופטיקה"), new("1498", "אופנה וטקסטיל"), new("1504", "אחזקה ושירותי ניקיון"), new("1510", "אינטרנט ומדיה"), new("1544", "אלקטרוניקה וחשמל"), new("1557", "בידור מדיה ואומנות"), new("1570", "ביוטכנולוגיה"), new("1580", "ביטוח"), new("1597", "בינוי נדל\"ן ותשתיות"), new("1604", "הנדסאים"), new("1612", "חומרה"), new("1633", "חינוך והוראה"), new("2425", "טבע וחקלאות"), new("1645", "טיפוח ויופי"), new("1654", "יצוא ויבוא"), new("1663", "כלכלה כספים וחשבונאות"), new("1686", "כללי"), new("1708", "מדעי החברה"), new("1719", "מדעי החיים"), new("1734", "מדעים והנדסה"), new("1752", "מהנדסים"), new("1767", "מזון ומסעדנות"), new("1785", "מזכירות ואדמיניסטרציה"), new("1797", "מחשבים ותקשורת"), new("1825", "מכירות"), new("1844", "מלונאות תיירות וטיולים"), new("1857", "מערכות מידע"), new("1868", "משאבי אנוש"), new("1882", "משפטים ועריכת דין"), new("1900", "נהגים הפצה ושליחויות"), new("1910", "ניהול בכיר"), new("1928", "ניתוח מערכות"), new("1935", "סטודנטים ונוער"), new("2269", "סיעוד"), new("1951", "ספורט ואימון"), new("1959", "ספנות ותעופה"), new("1969", "עיצוב"), new("1997", "עריכה ותוכן"), new("2346", "פרסום, שיווק ויחסי ציבור"), new("2008", "קמעונאות"), new("2025", "רכב"), new("2039", "רכש קניינות ולוגיסטיקה"), new("2053", "רפואה בריאות וסיעוד"), new("2087", "רפואה משלימה"), new("2096", "שירות לקוחות"), new("2108", "שמירה וביטחון"), new("2119", "תוכנה"), new("2185", "תוכנה QA"), new("2199", "תעשייה וייצור")
+    ];
+    private static readonly JobKarovArea[] JobKarovAreas =
+    [
+        new("-2", "כל הארץ", "כללי"), new("-1", "סביבי", "כללי"),
+        new("11", "צפון", "צפון"), new("12", "גליל עליון", "צפון"), new("13", "גליל תחתון", "צפון"), new("14", "הגולן", "צפון"), new("15", "הכנרת והסביבה", "צפון"), new("16", "חיפה והסביבה", "צפון"), new("17", "כרמיאל והסביבה", "צפון"), new("18", "נצרת - שפרעם והסביבה", "צפון"), new("19", "עכו - נהריה והסביבה", "צפון"), new("20", "קריות והסביבה", "צפון"), new("21", "ראש פינה החולה", "צפון"),
+        new("30", "חדרה זכרון ועמקים", "חדרה זכרון ועמקים"), new("31", "זכרון וחוף הכרמל", "חדרה זכרון ועמקים"), new("32", "חדרה והסביבה", "חדרה זכרון ועמקים"), new("33", "יקנעם טבעון והסביבה", "חדרה זכרון ועמקים"), new("34", "עמק בית שאן", "חדרה זכרון ועמקים"), new("35", "עפולה והעמקים", "חדרה זכרון ועמקים"), new("36", "קיסריה והסביבה", "חדרה זכרון ועמקים"), new("37", "רמת מנשה", "חדרה זכרון ועמקים"),
+        new("50", "השרון", "השרון"), new("51", "דרום השרון", "השרון"), new("52", "הוד השרון והסביבה", "השרון"), new("53", "נתניה והסביבה", "השרון"), new("54", "צפון השרון", "השרון"), new("55", "רמת השרון - הרצליה", "השרון"), new("56", "רעננה - כפר סבא", "השרון"),
+        new("70", "מרכז", "מרכז"), new("71", "בני ברק - גבעת שמואל", "מרכז"), new("72", "בקעת אונו", "מרכז"), new("73", "חולון - בת ים", "מרכז"), new("74", "מודיעין והסביבה", "מרכז"), new("76", "פתח תקווה והסביבה", "מרכז"), new("77", "ראש העין והסביבה", "מרכז"), new("78", "ראשון לציון והסביבה", "מרכז"), new("79", "רמלה - לוד", "מרכז"), new("80", "רמת גן - גבעתיים", "מרכז"), new("81", "שוהם והסביבה", "מרכז"), new("82", "תל אביב", "מרכז"),
+        new("90", "אזור ירושלים", "אזור ירושלים"), new("91", "בית שמש והסביבה", "אזור ירושלים"), new("92", "הרי יהודה - מבשרת והסביבה", "אזור ירושלים"), new("93", "ירושלים", "אזור ירושלים"), new("94", "מעלה אדומים והסביבה", "אזור ירושלים"),
+        new("110", "יהודה שומרון ובקעת הירדן", "יהודה שומרון ובקעת הירדן"), new("111", "אריאל וישובי שומרון", "יהודה שומרון ובקעת הירדן"), new("112", "בקעת הירדן וצפון ים המלח", "יהודה שומרון ובקעת הירדן"), new("113", "גוש עציון", "יהודה שומרון ובקעת הירדן"), new("114", "ישובי דרום ההר", "יהודה שומרון ובקעת הירדן"),
+        new("130", "שפלה מישור חוף דרומי", "שפלה מישור חוף דרומי"), new("131", "אשדוד - אשקלון והסביבה", "שפלה מישור חוף דרומי"), new("132", "גדרה - יבנה והסביבה", "שפלה מישור חוף דרומי"), new("133", "נס ציונה - רחובות", "שפלה מישור חוף דרומי"), new("134", "קרית גת והסביבה", "שפלה מישור חוף דרומי"), new("135", "שפלה", "שפלה מישור חוף דרומי"),
+        new("150", "דרום", "דרום"), new("151", "אילת וערבה", "דרום"), new("152", "באר שבע והסביבה", "דרום"), new("153", "דרום ים המלח", "דרום"), new("154", "הנגב המערבי", "דרום"), new("155", "ישובי הנגב", "דרום")
+    ];
     private readonly JobWatcherSettingsStore settingsStore;
     private readonly List<JobSourceOptions> sources = [];
     private string? settingsPath;
@@ -21,10 +40,19 @@ public partial class SourceProfilesPage : ContentPage
     private Entry? maximumVacancyAgeDaysEntry;
     private Entry? directUrlEntry;
     private Entry? jobKarovBaseUrlEntry;
-    private Entry? jobKarovSpecialityEntry;
-    private Entry? jobKarovRolesEntry;
-    private Entry? jobKarovAreasEntry;
-    private Entry? jobKarovSizeEntry;
+    private readonly HashSet<string> jobKarovSelectedSpecialities = new(StringComparer.OrdinalIgnoreCase);
+    private HashSet<string>? jobKarovCategoryDialogSelection;
+    private readonly List<JobKarovCategoryOption> jobKarovCategoryOptions = JobKarovCategories.Select(category => new JobKarovCategoryOption(category)).ToList();
+    private Label? jobKarovCategoriesSummary;
+    private readonly HashSet<string> jobKarovSelectedRoles = new(StringComparer.OrdinalIgnoreCase);
+    private HashSet<string>? jobKarovRoleDialogSelection;
+    private readonly List<JobKarovRoleOption> jobKarovRoleOptions = JobKarovRoleCatalog.All.Select(role => new JobKarovRoleOption(role)).ToList();
+    private Label? jobKarovRolesSummary;
+    private Entry? jobKarovQueryEntry;
+    private readonly HashSet<string> jobKarovSelectedAreas = new(StringComparer.OrdinalIgnoreCase);
+    private HashSet<string>? jobKarovAreaDialogSelection;
+    private readonly List<JobKarovAreaOption> jobKarovAreaOptions = JobKarovAreas.Select(area => new JobKarovAreaOption(area)).ToList();
+    private Label? jobKarovAreasSummary;
     private Entry? drushimBaseUrlEntry;
     private Entry? drushimCategoryEntry;
     private Entry? drushimSubcategoryEntry;
@@ -58,6 +86,12 @@ public partial class SourceProfilesPage : ContentPage
     private Entry? secretTelAvivMaxDetailsEntry;
     private Entry? devJobsBaseUrlEntry;
     private Entry? devJobsSearchUrlEntry;
+    private Switch? devJobsUseUrlOverrideSwitch;
+    private readonly Dictionary<string, CheckBox> devJobsDeveloperTypeChecks = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, CheckBox> devJobsDistrictChecks = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> devJobsSelectedCities = new(StringComparer.OrdinalIgnoreCase);
+    private SearchBar? devJobsCitySearchBar;
+    private VerticalStackLayout? devJobsCitiesLayout;
     private Entry? devJobsNameFilterEntry;
     private Entry? devJobsMaxPagesEntry;
     private Entry? devJobsMaxDetailsEntry;
@@ -84,18 +118,28 @@ public partial class SourceProfilesPage : ContentPage
         RefreshProfiles();
     }
 
-    private void OnProfileSelected(object? sender, SelectionChangedEventArgs e)
+    private async void OnProfileSelected(object? sender, SelectionChangedEventArgs e)
     {
         if (e.CurrentSelection.FirstOrDefault() is not ProfileListItem selected)
         {
             return;
         }
 
-        selectedIndex = sources.FindIndex(source => string.Equals(source.Name, selected.Name, StringComparison.OrdinalIgnoreCase));
-        if (selectedIndex < 0)
+        var nextIndex = sources.FindIndex(source => string.Equals(source.Name, selected.Name, StringComparison.OrdinalIgnoreCase));
+        if (nextIndex < 0 || nextIndex == selectedIndex)
         {
             return;
         }
+
+        if (selectedIndex >= 0 && !await TryApplySelectedDraftAsync())
+        {
+            var currentName = sources[selectedIndex].Name;
+            Profiles.SelectedItem = ((IEnumerable<ProfileListItem>?)Profiles.ItemsSource)
+                ?.FirstOrDefault(item => string.Equals(item.Name, currentName, StringComparison.OrdinalIgnoreCase));
+            return;
+        }
+
+        selectedIndex = nextIndex;
 
         var source = sources[selectedIndex];
         Editor.Children.Clear();
@@ -268,18 +312,28 @@ public partial class SourceProfilesPage : ContentPage
 
     private Entry AddEntry(string label, string value)
     {
-        Editor.Children.Add(new Label { Text = label, FontAttributes = FontAttributes.Bold });
+        return AddEntry(Editor, label, value);
+    }
+
+    private Entry AddEntry(VerticalStackLayout layout, string label, string value)
+    {
+        layout.Children.Add(new Label { Text = label, FontAttributes = FontAttributes.Bold });
         var entry = new Entry { Text = value };
         entry.TextChanged += OnEditorValueChanged;
-        Editor.Children.Add(entry);
+        layout.Children.Add(entry);
         return entry;
     }
 
     private Switch AddSwitch(string label, bool value)
     {
+        return AddSwitch(Editor, label, value);
+    }
+
+    private Switch AddSwitch(VerticalStackLayout layout, string label, bool value)
+    {
         var toggle = new Switch { IsToggled = value };
         toggle.Toggled += OnEditorValueChanged;
-        Editor.Children.Add(new HorizontalStackLayout
+        layout.Children.Add(new HorizontalStackLayout
         {
             Spacing = 12,
             Children = { new Label { Text = label, VerticalOptions = LayoutOptions.Center }, toggle }
@@ -331,7 +385,6 @@ public partial class SourceProfilesPage : ContentPage
 
     private JobSourceOptions BuildJobKarovPreview(JobSourceOptions source)
     {
-        _ = TryParseInt(jobKarovSizeEntry?.Text, out var size);
         return new JobSourceOptions
         {
             Name = source.Name,
@@ -340,10 +393,12 @@ public partial class SourceProfilesPage : ContentPage
             JobKarovFilter = new JobKarovFilterOptions
             {
                 BaseUrl = jobKarovBaseUrlEntry?.Text?.Trim() ?? string.Empty,
-                Speciality = jobKarovSpecialityEntry?.Text?.Trim() ?? string.Empty,
-                Roles = SplitIds(jobKarovRolesEntry?.Text),
-                Areas = SplitIds(jobKarovAreasEntry?.Text),
-                Size = size
+                Query = jobKarovQueryEntry?.Text?.Trim() ?? string.Empty,
+                Specialities = SelectedJobKarovSpecialities(),
+                Speciality = string.Empty,
+                Roles = jobKarovSelectedRoles.ToList(),
+                Areas = SelectedJobKarovAreas(),
+                Size = JobKarovUrlBuilder.FixedSearchSize
             }
         };
     }
@@ -442,19 +497,15 @@ public partial class SourceProfilesPage : ContentPage
         var jobKarovFilter = previous.JobKarovFilter;
         if (string.Equals(previous.Adapter, "JobKarov", StringComparison.OrdinalIgnoreCase) && jobKarovBaseUrlEntry is not null)
         {
-            if (!int.TryParse(jobKarovSizeEntry?.Text, out var size) || size < 0)
-            {
-                await DisplayAlertAsync("Check the profile", "JobKarov company size must be zero or greater.", "OK");
-                return false;
-            }
-
             jobKarovFilter = new JobKarovFilterOptions
             {
                 BaseUrl = jobKarovBaseUrlEntry.Text?.Trim() ?? string.Empty,
-                Speciality = jobKarovSpecialityEntry?.Text?.Trim() ?? string.Empty,
-                Roles = SplitIds(jobKarovRolesEntry?.Text),
-                Areas = SplitIds(jobKarovAreasEntry?.Text),
-                Size = size
+                Query = jobKarovQueryEntry?.Text?.Trim() ?? string.Empty,
+                Specialities = SelectedJobKarovSpecialities(),
+                Speciality = string.Empty,
+                Roles = jobKarovSelectedRoles.ToList(),
+                Areas = SelectedJobKarovAreas(),
+                Size = JobKarovUrlBuilder.FixedSearchSize
             };
         }
 
@@ -596,7 +647,26 @@ public partial class SourceProfilesPage : ContentPage
         {
             var baseUrl = devJobsBaseUrlEntry.Text?.Trim() ?? string.Empty;
             var searchUrl = devJobsSearchUrlEntry.Text?.Trim() ?? string.Empty;
-            var candidate = new DevJobsFilterOptions { BaseUrl = baseUrl, SearchUrl = searchUrl };
+            var developerTypes = devJobsDeveloperTypeChecks
+                .Where(pair => pair.Value.IsChecked)
+                .Select(pair => pair.Key)
+                .ToList();
+            var districts = devJobsDistrictChecks
+                .Where(pair => pair.Value.IsChecked)
+                .Select(pair => pair.Key)
+                .ToList();
+            var cities = devJobsSelectedCities.OrderBy(city => city, StringComparer.OrdinalIgnoreCase).ToList();
+
+            var useSearchUrlOverride = devJobsUseUrlOverrideSwitch?.IsToggled ?? false;
+            var candidate = new DevJobsFilterOptions
+            {
+                BaseUrl = baseUrl,
+                SearchUrl = searchUrl,
+                UseSearchUrlOverride = useSearchUrlOverride,
+                DeveloperTypes = developerTypes,
+                Districts = districts,
+                Cities = cities
+            };
             try
             {
                 var resolvedUrl = DevJobsUrlBuilder.Build(candidate, 1);
@@ -625,6 +695,10 @@ public partial class SourceProfilesPage : ContentPage
             {
                 BaseUrl = baseUrl,
                 SearchUrl = searchUrl,
+                UseSearchUrlOverride = useSearchUrlOverride,
+                DeveloperTypes = developerTypes,
+                Districts = districts,
+                Cities = cities,
                 NameFilter = devJobsNameFilterEntry?.Text?.Trim(),
                 MaxPages = maxPages,
                 MaxDetailsPerPage = maxDetails
@@ -662,13 +736,40 @@ public partial class SourceProfilesPage : ContentPage
         Editor.Children.Add(new BoxView { HeightRequest = 1, Margin = new Thickness(0, 8), BackgroundColor = Colors.LightGray });
         Editor.Children.Add(new Label { Text = "JobKarov search", FontSize = 18, FontAttributes = FontAttributes.Bold });
         jobKarovBaseUrlEntry = AddEntry("Base URL", filter.BaseUrl);
-        jobKarovSpecialityEntry = AddEntry("Speciality ID", filter.Speciality);
-        AddKnownValuesHint("2119 - Software; 3921 - Cybersecurity; 1857 - Information Systems.");
-        jobKarovRolesEntry = AddEntry("Role IDs", string.Join(", ", filter.Roles));
-        AddKnownValuesHint("3893 - Backend; 2163 - .NET; 2155 - C#; 3131 - Software Engineer; 2177 - Senior Programmer.");
-        jobKarovAreasEntry = AddEntry("Area IDs", string.Join(", ", filter.Areas));
-        AddKnownValuesHint("50 - Hasharon; 70 - Center.");
-        jobKarovSizeEntry = AddEntry("Company size", filter.Size.ToString());
+        jobKarovQueryEntry = AddEntry("Search words", filter.Query);
+        AddKnownValuesHint("Examples: C# .Net, Backend, ASP.NET. JobKarov sends this as the query parameter.");
+        Editor.Children.Add(new Label { Text = "Categories", FontAttributes = FontAttributes.Bold });
+        var selectedSpecialities = filter.Specialities.Count > 0 ? filter.Specialities : string.IsNullOrWhiteSpace(filter.Speciality) ? [] : [filter.Speciality];
+        jobKarovSelectedSpecialities.Clear();
+        foreach (var speciality in selectedSpecialities)
+        {
+            jobKarovSelectedSpecialities.Add(speciality);
+        }
+
+        var chooseCategoriesButton = new Button { Text = "Choose categories" };
+        chooseCategoriesButton.Clicked += OnChooseJobKarovCategoriesClicked;
+        Editor.Children.Add(chooseCategoriesButton);
+        jobKarovCategoriesSummary = new Label { TextColor = Colors.Gray, FontSize = 12 };
+        Editor.Children.Add(jobKarovCategoriesSummary);
+        UpdateJobKarovCategoriesSummary();
+        jobKarovSelectedRoles.Clear();
+        jobKarovSelectedRoles.UnionWith(filter.Roles);
+        var chooseRolesButton = new Button { Text = "Choose roles" };
+        chooseRolesButton.Clicked += OnChooseJobKarovRolesClicked;
+        Editor.Children.Add(chooseRolesButton);
+        jobKarovRolesSummary = new Label { TextColor = Colors.Gray, FontSize = 12 };
+        Editor.Children.Add(jobKarovRolesSummary);
+        UpdateJobKarovRolesSummary();
+        Editor.Children.Add(new Label { Text = "Locations", FontAttributes = FontAttributes.Bold });
+        jobKarovSelectedAreas.Clear();
+        jobKarovSelectedAreas.UnionWith(filter.Areas);
+        var chooseAreasButton = new Button { Text = "Choose locations" };
+        chooseAreasButton.Clicked += OnChooseJobKarovAreasClicked;
+        Editor.Children.Add(chooseAreasButton);
+        jobKarovAreasSummary = new Label { TextColor = Colors.Gray, FontSize = 12 };
+        Editor.Children.Add(jobKarovAreasSummary);
+        UpdateJobKarovAreasSummary();
+        AddKnownValuesHint("The JobKarov size parameter is fixed to the verified working value: 2.");
     }
 
     private void AddDrushimFields(JobSourceOptions source)
@@ -788,15 +889,149 @@ public partial class SourceProfilesPage : ContentPage
         }
 
         var filter = source.DevJobsFilter ?? new DevJobsFilterOptions();
+        var legacyValues = GetDevJobsLegacyValues(filter);
+        var selectedDeveloperTypes = filter.DeveloperTypes.Count > 0 ? filter.DeveloperTypes : legacyValues.DeveloperTypes;
+        var selectedDistricts = filter.Districts.Count > 0
+            ? filter.Districts
+            : !string.IsNullOrWhiteSpace(filter.District) ? [filter.District] : legacyValues.Districts;
+        var selectedCities = filter.Cities.Count > 0 ? filter.Cities : legacyValues.Cities;
         Editor.Children.Add(new BoxView { HeightRequest = 1, Margin = new Thickness(0, 8), BackgroundColor = Colors.LightGray });
         Editor.Children.Add(new Label { Text = "DevJobs search", FontSize = 18, FontAttributes = FontAttributes.Bold });
-        devJobsBaseUrlEntry = AddEntry("Base URL", filter.BaseUrl);
-        devJobsSearchUrlEntry = AddEntry("Search URL", filter.SearchUrl);
-        AddKnownValuesHint("Use the path or full URL produced by the DevJobs filters. The collector requests numbered pages automatically.");
+        Editor.Children.Add(new Label { Text = "Developer types", FontAttributes = FontAttributes.Bold });
+        devJobsDeveloperTypeChecks.Clear();
+        var developerTypesLayout = new VerticalStackLayout { Spacing = 6 };
+        foreach (var developerType in DevJobsDeveloperTypes)
+        {
+            var checkBox = new CheckBox { IsChecked = selectedDeveloperTypes.Contains(developerType, StringComparer.OrdinalIgnoreCase) };
+            checkBox.CheckedChanged += OnEditorValueChanged;
+            devJobsDeveloperTypeChecks.Add(developerType, checkBox);
+            developerTypesLayout.Children.Add(new HorizontalStackLayout
+            {
+                Spacing = 4,
+                Children = { checkBox, new Label { Text = developerType, VerticalOptions = LayoutOptions.Center } }
+            });
+        }
+
+        Editor.Children.Add(developerTypesLayout);
+        Editor.Children.Add(new Label { Text = "Districts", FontAttributes = FontAttributes.Bold });
+        devJobsDistrictChecks.Clear();
+        var districtsLayout = new VerticalStackLayout { Spacing = 6 };
+        foreach (var district in DevJobsDistricts)
+        {
+            var checkBox = new CheckBox { IsChecked = selectedDistricts.Contains(district, StringComparer.OrdinalIgnoreCase) };
+            checkBox.CheckedChanged += OnEditorValueChanged;
+            devJobsDistrictChecks.Add(district, checkBox);
+            districtsLayout.Children.Add(new HorizontalStackLayout
+            {
+                Spacing = 4,
+                Children = { checkBox, new Label { Text = district, VerticalOptions = LayoutOptions.Center } }
+            });
+        }
+
+        Editor.Children.Add(districtsLayout);
+        Editor.Children.Add(new Label { Text = "Cities", FontAttributes = FontAttributes.Bold });
+        Editor.Children.Add(new Label
+        {
+            Text = "Choose one or more cities. Each selected district or city is searched separately, then results are combined.",
+            TextColor = Colors.Gray,
+            FontSize = 12,
+            LineBreakMode = LineBreakMode.WordWrap
+        });
+        devJobsSelectedCities.Clear();
+        foreach (var city in selectedCities)
+        {
+            devJobsSelectedCities.Add(city);
+        }
+
+        devJobsCitySearchBar = new SearchBar { Placeholder = "Find a city" };
+        devJobsCitySearchBar.TextChanged += OnDevJobsCitySearchTextChanged;
+        Editor.Children.Add(devJobsCitySearchBar);
+        devJobsCitiesLayout = new VerticalStackLayout { Spacing = 6 };
+        Editor.Children.Add(devJobsCitiesLayout);
+        RebuildDevJobsCityOptions();
         devJobsNameFilterEntry = AddEntry("Job name or skill text", filter.NameFilter ?? string.Empty);
         AddKnownValuesHint("This is applied through the site's Livewire search after the URL filters load. Example: .NET.");
         devJobsMaxPagesEntry = AddEntry("Maximum pages", filter.MaxPages.ToString());
         devJobsMaxDetailsEntry = AddEntry("Maximum detail pages per result page", filter.MaxDetailsPerPage.ToString());
+
+        var advancedContent = new VerticalStackLayout { Spacing = 12, Margin = new Thickness(0, 8, 0, 0) };
+        devJobsUseUrlOverrideSwitch = AddSwitch(advancedContent, "Use custom search URL", filter.UseSearchUrlOverride);
+        devJobsBaseUrlEntry = AddEntry(advancedContent, "Base URL", filter.BaseUrl);
+        devJobsSearchUrlEntry = AddEntry(advancedContent, "Search URL override", filter.SearchUrl);
+        advancedContent.Children.Add(new Label
+        {
+            Text = "When enabled, the URL override replaces the developer types, districts, and cities above.",
+            TextColor = Colors.Gray,
+            FontSize = 12,
+            LineBreakMode = LineBreakMode.WordWrap
+        });
+        Editor.Children.Add(new BoxView { HeightRequest = 1, Margin = new Thickness(0, 8), BackgroundColor = Colors.LightGray });
+        Editor.Children.Add(new Label { Text = "Advanced override", FontAttributes = FontAttributes.Bold });
+        Editor.Children.Add(advancedContent);
+    }
+
+    private void OnDevJobsCitySearchTextChanged(object? sender, TextChangedEventArgs e)
+    {
+        RebuildDevJobsCityOptions();
+    }
+
+    private void RebuildDevJobsCityOptions()
+    {
+        if (devJobsCitiesLayout is null)
+        {
+            return;
+        }
+
+        var searchText = devJobsCitySearchBar?.Text?.Trim() ?? string.Empty;
+        var cities = DevJobsCities.Where(city => city.Contains(searchText, StringComparison.OrdinalIgnoreCase)).ToList();
+        devJobsCitiesLayout.Children.Clear();
+        foreach (var city in cities)
+        {
+            var checkBox = new CheckBox { IsChecked = devJobsSelectedCities.Contains(city) };
+            checkBox.CheckedChanged += (_, args) =>
+            {
+                if (args.Value)
+                {
+                    devJobsSelectedCities.Add(city);
+                }
+                else
+                {
+                    devJobsSelectedCities.Remove(city);
+                }
+
+                OnEditorValueChanged(null, EventArgs.Empty);
+            };
+            devJobsCitiesLayout.Children.Add(new HorizontalStackLayout
+            {
+                Spacing = 4,
+                Children = { checkBox, new Label { Text = city, VerticalOptions = LayoutOptions.Center } }
+            });
+        }
+
+        if (cities.Count == 0)
+        {
+            devJobsCitiesLayout.Children.Add(new Label { Text = "No matching city", TextColor = Colors.Gray });
+        }
+    }
+
+    private static (IReadOnlyList<string> DeveloperTypes, IReadOnlyList<string> Districts, IReadOnlyList<string> Cities) GetDevJobsLegacyValues(DevJobsFilterOptions filter)
+    {
+        if (!Uri.TryCreate(filter.BaseUrl, UriKind.Absolute, out var baseUri) || string.IsNullOrWhiteSpace(filter.SearchUrl))
+        {
+            return ([], [], []);
+        }
+
+        var searchUri = Uri.TryCreate(filter.SearchUrl, UriKind.Absolute, out var absolute)
+            ? absolute
+            : new Uri(new Uri(baseUri.ToString().TrimEnd('/') + "/"), filter.SearchUrl.TrimStart('/'));
+        var query = System.Web.HttpUtility.ParseQueryString(searchUri.Query);
+        var developerTypes = (query["developerTypes"] ?? string.Empty)
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var districts = (query["district"] ?? string.Empty)
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var cities = (query["city"] ?? string.Empty)
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return (developerTypes, districts, cities);
     }
 
     private void AddKnownValuesHint(string text)
@@ -828,6 +1063,183 @@ public partial class SourceProfilesPage : ContentPage
         return string.IsNullOrWhiteSpace(value)
             ? []
             : value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    }
+
+    private IReadOnlyList<string> SelectedJobKarovSpecialities() => jobKarovSelectedSpecialities.ToList();
+
+    private void OnChooseJobKarovCategoriesClicked(object? sender, EventArgs e)
+    {
+        jobKarovCategoryDialogSelection = new HashSet<string>(jobKarovSelectedSpecialities, StringComparer.OrdinalIgnoreCase);
+        foreach (var option in jobKarovCategoryOptions) option.IsSelected = jobKarovCategoryDialogSelection.Contains(option.Category.Id);
+        RebuildJobKarovCategoryDialog();
+        JobKarovCategoriesDialog.IsVisible = true;
+    }
+
+    private void OnSelectAllJobKarovCategoriesClicked(object? sender, EventArgs e)
+    {
+        if (jobKarovCategoryDialogSelection is null)
+        {
+            return;
+        }
+
+        foreach (var option in jobKarovCategoryOptions) option.IsSelected = true;
+        RebuildJobKarovCategoryDialog();
+    }
+
+    private void OnClearJobKarovCategoriesClicked(object? sender, EventArgs e)
+    {
+        foreach (var option in jobKarovCategoryOptions) option.IsSelected = false;
+        RebuildJobKarovCategoryDialog();
+    }
+
+    private void OnCancelJobKarovCategoriesClicked(object? sender, EventArgs e)
+    {
+        jobKarovCategoryDialogSelection = null;
+        JobKarovCategoriesDialog.IsVisible = false;
+    }
+
+    private void OnDoneJobKarovCategoriesClicked(object? sender, EventArgs e)
+    {
+        if (jobKarovCategoryDialogSelection is not null)
+        {
+            jobKarovSelectedSpecialities.Clear();
+            jobKarovSelectedSpecialities.UnionWith(jobKarovCategoryOptions.Where(option => option.IsSelected).Select(option => option.Category.Id));
+            UpdateJobKarovCategoriesSummary();
+        }
+
+        jobKarovCategoryDialogSelection = null;
+        JobKarovCategoriesDialog.IsVisible = false;
+    }
+
+    private void RebuildJobKarovCategoryDialog()
+    {
+        if (jobKarovCategoryDialogSelection is null)
+        {
+            return;
+        }
+
+        JobKarovCategoriesColumns.ItemsSource = jobKarovCategoryOptions;
+    }
+
+    private void UpdateJobKarovCategoriesSummary()
+    {
+        if (jobKarovCategoriesSummary is not null)
+        {
+            jobKarovCategoriesSummary.Text = jobKarovSelectedSpecialities.Count == 0
+                ? "No categories selected"
+                : $"{jobKarovSelectedSpecialities.Count} categories selected";
+        }
+    }
+
+    private void OnChooseJobKarovRolesClicked(object? sender, EventArgs e)
+    {
+        jobKarovRoleDialogSelection = new HashSet<string>(jobKarovSelectedRoles, StringComparer.OrdinalIgnoreCase);
+        foreach (var option in jobKarovRoleOptions) option.IsSelected = jobKarovRoleDialogSelection.Contains(option.Role.Id);
+        JobKarovRoleSearch.Text = string.Empty;
+        RebuildJobKarovRoles();
+        JobKarovRolesDialog.IsVisible = true;
+    }
+
+    private void OnJobKarovRoleSearchTextChanged(object? sender, TextChangedEventArgs e) => RebuildJobKarovRoles();
+
+    private void RebuildJobKarovRoles()
+    {
+        if (jobKarovRoleDialogSelection is null) return;
+        var term = JobKarovRoleSearch.Text?.Trim() ?? string.Empty;
+        JobKarovRolesList.ItemsSource = jobKarovRoleOptions
+            .Where(option => string.IsNullOrWhiteSpace(term) || option.SearchText.Contains(term, StringComparison.OrdinalIgnoreCase))
+            .GroupBy(option => option.Role.Category)
+            .Select(group => new JobKarovRoleGroup(group.Key, group))
+            .ToList();
+    }
+
+    private void OnCancelJobKarovRolesClicked(object? sender, EventArgs e) { jobKarovRoleDialogSelection = null; JobKarovRolesDialog.IsVisible = false; }
+
+    private void OnDoneJobKarovRolesClicked(object? sender, EventArgs e)
+    {
+        if (jobKarovRoleDialogSelection is not null) { jobKarovSelectedRoles.Clear(); jobKarovSelectedRoles.UnionWith(jobKarovRoleOptions.Where(option => option.IsSelected).Select(option => option.Role.Id)); UpdateJobKarovRolesSummary(); }
+        jobKarovRoleDialogSelection = null; JobKarovRolesDialog.IsVisible = false;
+    }
+
+    private void OnClearJobKarovRolesClicked(object? sender, EventArgs e)
+    {
+        foreach (var option in jobKarovRoleOptions) option.IsSelected = false;
+        RebuildJobKarovRoles();
+    }
+
+    private void UpdateJobKarovRolesSummary()
+    {
+        if (jobKarovRolesSummary is not null) jobKarovRolesSummary.Text = jobKarovSelectedRoles.Count == 0 ? "No roles selected" : $"{jobKarovSelectedRoles.Count} roles selected";
+    }
+
+    private IReadOnlyList<string> SelectedJobKarovAreas() => jobKarovSelectedAreas.ToList();
+
+    private void OnChooseJobKarovAreasClicked(object? sender, EventArgs e)
+    {
+        jobKarovAreaDialogSelection = new HashSet<string>(jobKarovSelectedAreas, StringComparer.OrdinalIgnoreCase);
+        foreach (var option in jobKarovAreaOptions) option.IsSelected = jobKarovAreaDialogSelection.Contains(option.Area.Id);
+        JobKarovAreaSearch.Text = string.Empty;
+        RebuildJobKarovAreas();
+        JobKarovAreasDialog.IsVisible = true;
+    }
+
+    private void OnJobKarovAreaSearchTextChanged(object? sender, TextChangedEventArgs e) => RebuildJobKarovAreas();
+
+    private void RebuildJobKarovAreas()
+    {
+        if (jobKarovAreaDialogSelection is null) return;
+        var term = JobKarovAreaSearch.Text?.Trim() ?? string.Empty;
+        JobKarovAreasList.ItemsSource = jobKarovAreaOptions
+            .Where(option => string.IsNullOrWhiteSpace(term) || option.SearchText.Contains(term, StringComparison.OrdinalIgnoreCase))
+            .GroupBy(option => option.Area.Region)
+            .Select(group => new JobKarovAreaGroup(group.Key, group))
+            .ToList();
+    }
+
+    private void OnSelectAllJobKarovAreasClicked(object? sender, EventArgs e)
+    {
+        if (jobKarovAreaDialogSelection is null)
+        {
+            return;
+        }
+
+        var term = JobKarovAreaSearch.Text?.Trim() ?? string.Empty;
+        foreach (var option in jobKarovAreaOptions.Where(option => string.IsNullOrWhiteSpace(term) || option.SearchText.Contains(term, StringComparison.OrdinalIgnoreCase)))
+        {
+            option.IsSelected = true;
+        }
+
+        RebuildJobKarovAreas();
+    }
+
+    private void OnClearJobKarovAreasClicked(object? sender, EventArgs e)
+    {
+        foreach (var option in jobKarovAreaOptions) option.IsSelected = false;
+        RebuildJobKarovAreas();
+    }
+
+    private void OnCancelJobKarovAreasClicked(object? sender, EventArgs e)
+    {
+        jobKarovAreaDialogSelection = null;
+        JobKarovAreasDialog.IsVisible = false;
+    }
+
+    private void OnDoneJobKarovAreasClicked(object? sender, EventArgs e)
+    {
+        if (jobKarovAreaDialogSelection is not null)
+        {
+            jobKarovSelectedAreas.Clear();
+            jobKarovSelectedAreas.UnionWith(jobKarovAreaOptions.Where(option => option.IsSelected).Select(option => option.Area.Id));
+            UpdateJobKarovAreasSummary();
+        }
+
+        jobKarovAreaDialogSelection = null;
+        JobKarovAreasDialog.IsVisible = false;
+    }
+
+    private void UpdateJobKarovAreasSummary()
+    {
+        if (jobKarovAreasSummary is not null) jobKarovAreasSummary.Text = jobKarovSelectedAreas.Count == 0 ? "No locations selected" : $"{jobKarovSelectedAreas.Count} locations selected";
     }
 
     private static IReadOnlyList<string> SplitLines(string? value)
@@ -890,5 +1302,35 @@ public partial class SourceProfilesPage : ContentPage
         return true;
     }
 
+    private sealed record JobKarovCategory(string Id, string Name);
+    private sealed record JobKarovArea(string Id, string Name, string Region);
+    private sealed class JobKarovCategoryOption(JobKarovCategory category)
+    {
+        public JobKarovCategory Category { get; } = category;
+        public string DisplayName => $"{Category.Name} ({Category.Id})";
+        public bool IsSelected { get; set; }
+    }
+    private sealed class JobKarovRoleOption(JobKarovRole role)
+    {
+        public JobKarovRole Role { get; } = role;
+        public string DisplayName => $"{Role.Name} ({Role.Id})";
+        public string SearchText => $"{Role.Name} {Role.Category} {Role.Id}";
+        public bool IsSelected { get; set; }
+    }
+    private sealed class JobKarovRoleGroup(string category, IEnumerable<JobKarovRoleOption> roles) : List<JobKarovRoleOption>(roles)
+    {
+        public string Category { get; } = category;
+    }
+    private sealed class JobKarovAreaOption(JobKarovArea area)
+    {
+        public JobKarovArea Area { get; } = area;
+        public string DisplayName => $"{Area.Name} ({Area.Id})";
+        public string SearchText => $"{Area.Name} {Area.Region} {Area.Id}";
+        public bool IsSelected { get; set; }
+    }
+    private sealed class JobKarovAreaGroup(string region, IEnumerable<JobKarovAreaOption> areas) : List<JobKarovAreaOption>(areas)
+    {
+        public string Region { get; } = region;
+    }
     private sealed record ProfileListItem(string Name, string Adapter);
 }
