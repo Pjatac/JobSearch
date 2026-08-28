@@ -29,6 +29,7 @@ public sealed class JobWatcherRunner(
         var sourceOutputs = new List<SourceOutput>();
         var enabledCount = 0;
         var successCount = 0;
+        var partialCount = 0;
         var failureCount = 0;
         var requiredFailureCount = 0;
         var successfulSnapshotSources = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -82,10 +83,40 @@ public sealed class JobWatcherRunner(
             {
                 runResult = await source.FetchAsync(sourceOptions, generatedAtUtc, cancellationToken);
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException exception)
             {
-                logger.LogWarning("Source {Source} was cancelled after {ElapsedMilliseconds}ms", sourceOptions.Name, sourceStopwatch.ElapsedMilliseconds);
-                throw;
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    var cancelledOutput = new SourceOutput
+                    {
+                        Source = sourceOptions.Name,
+                        Status = "cancelled",
+                        Optional = sourceOptions.Optional,
+                        Error = "Run was cancelled."
+                    };
+                    sourceOutputs.Add(cancelledOutput);
+                    NotifyFinished(cancelledOutput);
+                    logger.LogWarning("Source {Source} was cancelled after {ElapsedMilliseconds}ms", sourceOptions.Name, sourceStopwatch.ElapsedMilliseconds);
+                    throw;
+                }
+
+                failureCount++;
+                if (!sourceOptions.Optional)
+                {
+                    requiredFailureCount++;
+                }
+
+                var timeoutOutput = new SourceOutput
+                {
+                    Source = sourceOptions.Name,
+                    Status = "failed",
+                    Optional = sourceOptions.Optional,
+                    Error = $"Source operation timed out or was cancelled internally after {sourceStopwatch.ElapsedMilliseconds}ms. Request timeout is {Math.Max(1, options.Value.RequestTimeoutSeconds)}s."
+                };
+                sourceOutputs.Add(timeoutOutput);
+                NotifyFinished(timeoutOutput);
+                logger.LogError(exception, "Source {Source} timed out or was cancelled internally after {ElapsedMilliseconds}ms", sourceOptions.Name, sourceStopwatch.ElapsedMilliseconds);
+                continue;
             }
             catch (Exception exception)
             {
@@ -100,7 +131,7 @@ public sealed class JobWatcherRunner(
                 runResult.Success,
                 runResult.Snapshot?.Vacancies.Count ?? 0);
 
-            if (!runResult.Success || runResult.Snapshot is null)
+            if ((!runResult.Success && !runResult.IsPartial) || runResult.Snapshot is null)
             {
                 failureCount++;
                 if (!sourceOptions.Optional)
@@ -136,6 +167,16 @@ public sealed class JobWatcherRunner(
                 continue;
             }
 
+            if (runResult.IsPartial)
+            {
+                partialCount++;
+                failureCount++;
+                if (!sourceOptions.Optional)
+                {
+                    requiredFailureCount++;
+                }
+            }
+
             var previous = await snapshotStore.LoadAsync(sourceOptions.Name, cancellationToken);
             var diff = comparisonService.Compare(previous, runResult.Snapshot);
             var warnings = runResult.Warnings.Concat(diff.Warnings).ToList();
@@ -157,14 +198,19 @@ public sealed class JobWatcherRunner(
                 logger.LogWarning("Source {Source}: {Warning}", sourceOptions.Name, warning);
             }
 
-            await snapshotStore.SaveAsync(runResult.Snapshot, cancellationToken);
-            successfulSnapshotSources.Add(sourceOptions.Name);
-            successfulSnapshots.Add(runResult.Snapshot);
-            successCount++;
+            if (!runResult.IsPartial)
+            {
+                await snapshotStore.SaveAsync(runResult.Snapshot, cancellationToken);
+                successfulSnapshotSources.Add(sourceOptions.Name);
+                successfulSnapshots.Add(runResult.Snapshot);
+                successCount++;
+            }
+
             var successfulOutput = new SourceOutput
             {
                 Source = sourceOptions.Name,
-                Status = "success",
+                Status = runResult.IsPartial ? "partial_failed" : "success",
+                Optional = sourceOptions.Optional,
                 IsInitialRun = diff.IsInitialRun,
                 PreviousCount = diff.PreviousCount,
                 CurrentCount = diff.CurrentCount,
@@ -172,11 +218,19 @@ public sealed class JobWatcherRunner(
                 RemovedCount = diff.RemovedVacancies.Count,
                 ClassificationSummary = classificationSummary,
                 Warnings = warnings,
-                NewJobs = newJobs
+                NewJobs = newJobs,
+                Error = runResult.Error
             };
             sourceOutputs.Add(successfulOutput);
             NotifyFinished(successfulOutput);
-            logger.LogInformation("Source {Source} finished successfully after {ElapsedMilliseconds}ms", sourceOptions.Name, sourceStopwatch.ElapsedMilliseconds);
+            if (runResult.IsPartial)
+            {
+                logger.LogWarning("Source {Source} finished with partial results after {ElapsedMilliseconds}ms: {Error}", sourceOptions.Name, sourceStopwatch.ElapsedMilliseconds, runResult.Error);
+            }
+            else
+            {
+                logger.LogInformation("Source {Source} finished successfully after {ElapsedMilliseconds}ms", sourceOptions.Name, sourceStopwatch.ElapsedMilliseconds);
+            }
         }
 
         sourceOutputs = DeduplicateNewJobsForOutput(sourceOutputs);
@@ -196,7 +250,7 @@ public sealed class JobWatcherRunner(
         await WriteHistoryOutputAsync(generatedAtUtc, output, cancellationToken);
         logger.LogInformation("Wrote run output to {OutputPath}", outputPath);
 
-        if (enabledCount == 0 || successCount == 0)
+        if (enabledCount == 0 || (successCount == 0 && partialCount == 0))
         {
             return 2;
         }

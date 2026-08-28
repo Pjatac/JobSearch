@@ -1,5 +1,6 @@
 using System.Text;
 using JobWatcher.Configuration;
+using JobWatcher.Http;
 using JobWatcher.Models;
 using JobWatcher.Utilities;
 using Microsoft.Extensions.Logging;
@@ -33,7 +34,7 @@ public sealed class DrushimSource(
             using var client = httpClientFactory.CreateClient(HttpClientName);
             client.Timeout = TimeSpan.FromSeconds(Math.Max(1, watcherOptions.Value.RequestTimeoutSeconds));
 
-            using var response = await client.GetAsync(url, cancellationToken);
+            using var response = await HttpRequestRetryPolicy.GetAsync(client, url, logger, options.Name, cancellationToken);
             var responseBytes = await response.Content.ReadAsByteArrayAsync(cancellationToken);
             var html = Encoding.UTF8.GetString(responseBytes);
             logger.LogInformation("Source {Source} HTTP {StatusCode}, response size {ResponseSize}", options.Name, (int)response.StatusCode, responseBytes.Length);
@@ -96,7 +97,7 @@ public sealed class DrushimSource(
             var url = DrushimUrlBuilder.BuildApiSearch(options, page);
             logger.LogInformation("Fetching source {Source} page {Page} from {Url}", options.Name, page, url);
 
-            using var response = await client.GetAsync(url, cancellationToken);
+            using var response = await HttpRequestRetryPolicy.GetAsync(client, url, logger, options.Name, cancellationToken);
             var responseBytes = await response.Content.ReadAsByteArrayAsync(cancellationToken);
             var json = Encoding.UTF8.GetString(responseBytes);
             logger.LogInformation(

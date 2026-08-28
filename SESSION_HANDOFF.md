@@ -3,36 +3,13 @@
 This file is the operational starting point for the next development session. Read it after
 `AGENTS.md`, `README.md`, and `DEVELOPMENT_PLAN.md`.
 
-## First Task: Establish Version Control
-
-This repository currently has no Git history. Do this before changing application behavior:
-
-1. Inspect the current tree and create a conservative `.gitignore`.
-2. Ignore build output and local runtime state: `**/bin/`, `**/obj/`, `.vs/`, and `data/`.
-3. Do not ignore `packages/TlsClient.0.6.0-preview.1.nupkg`; it is the locally built dependency
-   required for restore on macOS.
-4. Run `git init`, inspect `git status`, and verify that no `data/` files or local secrets are
-   staged.
-5. Stage the source, tests, solution, local NuGet package, and documentation deliberately.
-6. Make one initial commit that represents the current working baseline.
-
-Do not rewrite, delete, or regenerate any existing data while doing this.
-
 ## Immediate Engineering Priority
 
-Investigate manual-run reliability before adding more UI or sources. The user observed a Windows
-run apparently stuck while `AllJobs` was still `running`. The source runner executes work
-sequentially, and an AllJobs profile can walk multiple pages, so the next session must determine
-whether this is a slow request, a timeout/cancellation propagation bug, or an unbounded page walk.
-
-Use this order:
-
-1. Read the current app output and diagnostics in the MAUI AppData folder.
-2. Inspect the AllJobs source and its page limit using local code and existing diagnostics first.
-3. If a live request is needed, ask for or use the one-request budget from `AGENTS.md`, save the
-   response immediately, and do not launch the full application to debug one source.
-4. Improve progress/error reporting only after identifying the cause. A visible elapsed time and
-   a clear per-source terminal error are more useful than an indefinite `running` label.
+Analyze Drushim search responses and finish Drushim profile controls. The next known product task
+is to determine which dynamic lists can be extracted from a Drushim search response, especially
+whether categories and filters are query-dependent. Work from saved diagnostics first; if a live
+request is needed, follow the one-request budget in `AGENTS.md`, save the response under
+`data/diagnostics/`, and continue offline from that file.
 
 ## Current Functional State
 
@@ -43,6 +20,12 @@ Use this order:
 - The current Windows MAUI data root is:
   `C:\Users\pjata\AppData\Local\User Name\com.jobwatcher.app\Data`
 - The Glassdoor session under that root is a secret. Do not read, print, copy, or commit it.
+- Source HTTP requests share a retry policy: one retry after a timeout or internal cancellation,
+  with the same URL, body, headers, cookies, and client identity. HTTP responses and anti-bot
+  challenges are not retried.
+- Sources may return `partial_failed` output after preserving already collected listings from a
+  transient failure. Partial new jobs can be written to `new-jobs.json`, but partial snapshots do
+  not replace the last durable source snapshot.
 
 ## Secret Tel Aviv Status
 
@@ -99,7 +82,8 @@ Do not use a full `dotnet run` as a single-source diagnostic.
 
 ## Last Verified Baseline
 
-- Full solution build succeeded.
-- Offline unit tests passed: 123 tests.
-- The latest code changes include Secret Tel Aviv registration in
-  `JobWatcherServiceCollectionExtensions` and a readable source-status layout in `MainPage.xaml`.
+- Full solution build succeeded with 0 warnings and 0 errors.
+- Offline unit tests passed: 147 tests.
+- The latest code changes include shared HTTP request retry handling, partial failed source output,
+  explicit cancelled source output, JobKarov role/query/location controls, and README documentation
+  for partial runs.

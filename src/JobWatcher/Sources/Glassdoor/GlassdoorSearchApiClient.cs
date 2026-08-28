@@ -1,6 +1,8 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using JobWatcher.Http;
+using Microsoft.Extensions.Logging;
 
 namespace JobWatcher.Sources.Glassdoor;
 
@@ -13,7 +15,7 @@ namespace JobWatcher.Sources.Glassdoor;
 /// <c>?pageNumber</c> all return page one). This endpoint is what actually pages. It takes a plain
 /// JSON body and needs no CSRF token.
 /// </remarks>
-public sealed class GlassdoorSearchApiClient(HttpClient client)
+public sealed class GlassdoorSearchApiClient(HttpClient client, ILogger logger, string sourceName)
 {
     public const string Endpoint = "https://www.glassdoor.com/job-search-next/bff/jobSearchResultsQuery";
 
@@ -42,24 +44,32 @@ public sealed class GlassdoorSearchApiClient(HttpClient client)
         // body does not depend on reflection-based serialization being enabled.
         var json = JsonSerializer.Serialize(request, GlassdoorApiJsonContext.Default.GlassdoorSearchApiRequest);
 
-        var message = new HttpRequestMessage(HttpMethod.Post, Endpoint)
-        {
-            Content = new StringContent(json, Encoding.UTF8, "application/json")
-        };
+        return await HttpRequestRetryPolicy.SendAsync(
+            client,
+            () =>
+            {
+                var message = new HttpRequestMessage(HttpMethod.Post, Endpoint)
+                {
+                    Content = new StringContent(json, Encoding.UTF8, "application/json")
+                };
 
-        // The session's default headers describe a document navigation, which is right for the
-        // search page but wrong here: a browser issues this call as a fetch from that page. The
-        // fetch-metadata headers, Accept, Origin and Referer are overridden to match, so the
-        // request does not claim to be a top-level navigation to a JSON endpoint.
-        message.Headers.TryAddWithoutValidation("accept", "*/*");
-        message.Headers.TryAddWithoutValidation("sec-fetch-site", "same-origin");
-        message.Headers.TryAddWithoutValidation("sec-fetch-mode", "cors");
-        message.Headers.TryAddWithoutValidation("sec-fetch-dest", "empty");
-        message.Headers.TryAddWithoutValidation("origin", "https://www.glassdoor.com");
-        message.Headers.TryAddWithoutValidation("referer", search.BuildOriginalPageUrl());
-        message.Headers.TryAddWithoutValidation("priority", "u=1, i");
-
-        return await client.SendAsync(message, cancellationToken);
+                // The session's default headers describe a document navigation, which is right for the
+                // search page but wrong here: a browser issues this call as a fetch from that page. The
+                // fetch-metadata headers, Accept, Origin and Referer are overridden to match, so the
+                // request does not claim to be a top-level navigation to a JSON endpoint.
+                message.Headers.TryAddWithoutValidation("accept", "*/*");
+                message.Headers.TryAddWithoutValidation("sec-fetch-site", "same-origin");
+                message.Headers.TryAddWithoutValidation("sec-fetch-mode", "cors");
+                message.Headers.TryAddWithoutValidation("sec-fetch-dest", "empty");
+                message.Headers.TryAddWithoutValidation("origin", "https://www.glassdoor.com");
+                message.Headers.TryAddWithoutValidation("referer", search.BuildOriginalPageUrl());
+                message.Headers.TryAddWithoutValidation("priority", "u=1, i");
+                return message;
+            },
+            logger,
+            sourceName,
+            $"POST Glassdoor search API page {pageNumber}",
+            cancellationToken);
     }
 }
 

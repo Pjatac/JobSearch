@@ -243,6 +243,74 @@ public sealed class JobWatcherRunnerOutputTests
         Assert.True(File.Exists(snapshotPath));
     }
 
+    [Fact]
+    public async Task PartialFailedSourceWritesOutputButDoesNotReplaceSnapshot()
+    {
+        using var temp = new TempDirectory();
+        var options = Options.Create(new JobWatcherOptions
+        {
+            DataDirectory = temp.Path,
+            Sources =
+            [
+                new JobSourceOptions { Name = "DevJobs-Backend", Adapter = "DevJobs", Url = "https://example.test/devjobs" }
+            ]
+        });
+        var store = new JsonSnapshotStore(options, NullLogger<JsonSnapshotStore>.Instance);
+        await store.SaveAsync(new SourceSnapshot
+        {
+            Source = "DevJobs-Backend",
+            CollectedAtUtc = DateTimeOffset.UtcNow.AddDays(-1),
+            Vacancies = [Vacancy("stable") with { Source = "DevJobs-Backend" }]
+        }, CancellationToken.None);
+
+        var exitCode = await CreateRunner(options, [
+            new PartialSource("DevJobs", [Vacancy("stable"), Vacancy("partial-new")], "Detail request timed out.")
+        ], store).RunAsync(CancellationToken.None);
+
+        var output = await LoadOutputAsync(temp.Path);
+        var snapshot = await store.LoadAsync("DevJobs-Backend", CancellationToken.None);
+        Assert.Equal(1, exitCode);
+        Assert.True(output!.HasFailures);
+        Assert.Equal("partial_failed", output.Sources[0].Status);
+        Assert.Equal("Detail request timed out.", output.Sources[0].Error);
+        Assert.Equal(1, output.Sources[0].NewCount);
+        Assert.Equal("partial-new", Assert.Single(output.Sources[0].NewJobs).ExternalId);
+        Assert.Equal("stable", Assert.Single(snapshot!.Vacancies).ExternalId);
+    }
+
+    [Fact]
+    public async Task CancelledSourceNotifiesObserverBeforeRunStops()
+    {
+        using var temp = new TempDirectory();
+        using var cts = new CancellationTokenSource();
+        var updates = new List<SourceOutput>();
+        var options = Options.Create(new JobWatcherOptions
+        {
+            DataDirectory = temp.Path,
+            Sources =
+            [
+                new JobSourceOptions { Name = "DevJobs-Backend", Adapter = "DevJobs", Url = "https://example.test/devjobs" }
+            ]
+        });
+        var runner = new JobWatcherRunner(
+            options,
+            [new CancelledSource("DevJobs")],
+            new JsonSnapshotStore(options, NullLogger<JsonSnapshotStore>.Instance),
+            new JobComparisonService(),
+            new JobClassificationService(options),
+            new DuplicateCandidateService(),
+            new OutputDuplicateService(),
+            NullLogger<JobWatcherRunner>.Instance,
+            [new RecordingObserver(updates)]);
+
+        cts.Cancel();
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() => runner.RunAsync(cts.Token));
+        var cancelled = Assert.Single(updates);
+        Assert.Equal("DevJobs-Backend", cancelled.Source);
+        Assert.Equal("cancelled", cancelled.Status);
+    }
+
     private static JobWatcherRunner CreateRunner(
         IOptions<JobWatcherOptions> options,
         IEnumerable<IJobSource> sources,
@@ -316,6 +384,50 @@ public sealed class JobWatcherRunnerOutputTests
                 Success = false,
                 Error = error
             });
+        }
+    }
+
+    private sealed class PartialSource(string name, IReadOnlyList<JobVacancy> vacancies, string error) : IJobSource
+    {
+        public string Name { get; } = name;
+
+        public Task<SourceRunResult> FetchAsync(JobSourceOptions options, DateTimeOffset collectedAtUtc, CancellationToken cancellationToken)
+        {
+            return Task.FromResult(new SourceRunResult
+            {
+                Source = options.Name,
+                Success = false,
+                IsPartial = true,
+                Snapshot = new SourceSnapshot
+                {
+                    Source = options.Name,
+                    CollectedAtUtc = collectedAtUtc,
+                    Vacancies = vacancies.Select(vacancy => vacancy with { Source = options.Name, CollectedAtUtc = collectedAtUtc }).ToList()
+                },
+                Error = error
+            });
+        }
+    }
+
+    private sealed class CancelledSource(string name) : IJobSource
+    {
+        public string Name { get; } = name;
+
+        public Task<SourceRunResult> FetchAsync(JobSourceOptions options, DateTimeOffset collectedAtUtc, CancellationToken cancellationToken)
+        {
+            throw new OperationCanceledException(cancellationToken);
+        }
+    }
+
+    private sealed class RecordingObserver(List<SourceOutput> updates) : IJobWatcherRunObserver
+    {
+        public void SourceStarted(string source)
+        {
+        }
+
+        public void SourceFinished(SourceOutput sourceOutput)
+        {
+            updates.Add(sourceOutput);
         }
     }
 

@@ -1,4 +1,5 @@
 using JobWatcher.Configuration;
+using JobWatcher.Http;
 using JobWatcher.Models;
 using JobWatcher.Utilities;
 using Microsoft.Extensions.Logging;
@@ -31,7 +32,7 @@ public sealed class SecretTelAvivSource(
             using var client = httpClientFactory.CreateClient(HttpClientName);
             client.Timeout = TimeSpan.FromSeconds(Math.Max(1, watcherOptions.Value.RequestTimeoutSeconds));
             logger.LogInformation("Fetching source {Source} from {Url}", options.Name, url);
-            using var response = await client.GetAsync(url, cancellationToken);
+            using var response = await HttpRequestRetryPolicy.GetAsync(client, url, logger, options.Name, cancellationToken);
             var html = await response.Content.ReadAsStringAsync(cancellationToken);
 
             if (!response.IsSuccessStatusCode)
@@ -46,7 +47,7 @@ public sealed class SecretTelAvivSource(
             var maximumDetails = Math.Max(0, options.SecretTelAvivFilter?.MaxDetailsPerSearch ?? 0);
             foreach (var listedVacancy in parseResult.Vacancies.Take(maximumDetails))
             {
-                using var detailResponse = await client.GetAsync(listedVacancy.Url, cancellationToken);
+                using var detailResponse = await HttpRequestRetryPolicy.GetAsync(client, listedVacancy.Url, logger, options.Name, cancellationToken);
                 if (!detailResponse.IsSuccessStatusCode)
                 {
                     warnings.Add($"Skipped Secret Tel Aviv detail {listedVacancy.Url}: HTTP {(int)detailResponse.StatusCode} {detailResponse.ReasonPhrase}.");

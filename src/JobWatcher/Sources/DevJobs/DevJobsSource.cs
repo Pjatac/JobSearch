@@ -1,4 +1,5 @@
 using JobWatcher.Configuration;
+using JobWatcher.Http;
 using JobWatcher.Models;
 using JobWatcher.Utilities;
 using Microsoft.Extensions.Logging;
@@ -18,6 +19,9 @@ public sealed class DevJobsSource(
     public async Task<SourceRunResult> FetchAsync(JobSourceOptions options, DateTimeOffset collectedAtUtc, CancellationToken cancellationToken)
     {
         var warnings = new List<string>();
+        var vacancies = new Dictionary<string, JobVacancy>(StringComparer.OrdinalIgnoreCase);
+        var jobCardCount = 0;
+        string? latestSearchHtml = null;
         if (string.IsNullOrWhiteSpace(options.Url) && options.DevJobsFilter is null)
         {
             return Failed(options.Name, warnings, $"Source '{options.Name}' must define devJobsFilter.searchUrl.");
@@ -30,9 +34,6 @@ public sealed class DevJobsSource(
             var filter = options.DevJobsFilter ?? new DevJobsFilterOptions();
             var maxPages = string.IsNullOrWhiteSpace(options.Url) ? Math.Max(1, filter.MaxPages) : 1;
             var maxDetails = Math.Max(0, filter.MaxDetailsPerPage);
-            var vacancies = new Dictionary<string, JobVacancy>(StringComparer.OrdinalIgnoreCase);
-            var jobCardCount = 0;
-            string? latestSearchHtml = null;
 
             var scopes = !string.IsNullOrWhiteSpace(options.Url)
                 ? new[] { new DevJobsSearchScope(null, null) }
@@ -43,7 +44,7 @@ public sealed class DevJobsSource(
                 {
                     var initialUrl = !string.IsNullOrWhiteSpace(options.Url) ? options.Url : DevJobsUrlBuilder.Build(filter, 1, scope);
                     logger.LogInformation("Fetching DevJobs source {Source} before applying text search from {Url}", options.Name, initialUrl);
-                    using var initialResponse = await client.GetAsync(initialUrl, cancellationToken);
+                    using var initialResponse = await HttpRequestRetryPolicy.GetAsync(client, initialUrl, logger, options.Name, cancellationToken);
                     latestSearchHtml = await initialResponse.Content.ReadAsStringAsync(cancellationToken);
                     if (!initialResponse.IsSuccessStatusCode)
                     {
@@ -53,10 +54,19 @@ public sealed class DevJobsSource(
 
                     var session = parser.ParseLivewireSession(latestSearchHtml);
                     var endpoint = new Uri(new Uri(filter.BaseUrl.TrimEnd('/') + "/"), "livewire/update");
-                    using var searchRequest = DevJobsLivewireRequestFactory.CreateSearchRequest(endpoint, session, filter.NameFilter);
-                    searchRequest.Headers.Referrer = new Uri(initialUrl);
                     logger.LogInformation("Applying DevJobs text search for source {Source}", options.Name);
-                    using var searchResponse = await client.SendAsync(searchRequest, cancellationToken);
+                    using var searchResponse = await HttpRequestRetryPolicy.SendAsync(
+                        client,
+                        () =>
+                        {
+                            var request = DevJobsLivewireRequestFactory.CreateSearchRequest(endpoint, session, filter.NameFilter);
+                            request.Headers.Referrer = new Uri(initialUrl);
+                            return request;
+                        },
+                        logger,
+                        options.Name,
+                        "POST DevJobs Livewire text search",
+                        cancellationToken);
                     var responseJson = await searchResponse.Content.ReadAsStringAsync(cancellationToken);
                     if (!searchResponse.IsSuccessStatusCode)
                     {
@@ -78,9 +88,18 @@ public sealed class DevJobsSource(
                             break;
                         }
 
-                        using var pageRequest = DevJobsLivewireRequestFactory.CreatePageRequest(endpoint, session, page + 1);
-                        pageRequest.Headers.Referrer = new Uri(initialUrl);
-                        using var pageResponse = await client.SendAsync(pageRequest, cancellationToken);
+                        using var pageResponse = await HttpRequestRetryPolicy.SendAsync(
+                            client,
+                            () =>
+                            {
+                                var request = DevJobsLivewireRequestFactory.CreatePageRequest(endpoint, session, page + 1);
+                                request.Headers.Referrer = new Uri(initialUrl);
+                                return request;
+                            },
+                            logger,
+                            options.Name,
+                            $"POST DevJobs Livewire page {page + 1}",
+                            cancellationToken);
                         var pageJson = await pageResponse.Content.ReadAsStringAsync(cancellationToken);
                         if (!pageResponse.IsSuccessStatusCode)
                         {
@@ -99,7 +118,7 @@ public sealed class DevJobsSource(
                 {
                     var searchUrl = !string.IsNullOrWhiteSpace(options.Url) ? options.Url : DevJobsUrlBuilder.Build(filter, page, scope);
                     logger.LogInformation("Fetching DevJobs source {Source}, page {Page} from {Url}", options.Name, page, searchUrl);
-                    using var response = await client.GetAsync(searchUrl, cancellationToken);
+                    using var response = await HttpRequestRetryPolicy.GetAsync(client, searchUrl, logger, options.Name, cancellationToken);
                     var html = await response.Content.ReadAsStringAsync(cancellationToken);
                     latestSearchHtml = html;
                     if (!response.IsSuccessStatusCode)
@@ -121,6 +140,11 @@ public sealed class DevJobsSource(
             }
 
             return await Complete(options, warnings, vacancies.Values, jobCardCount, latestSearchHtml, collectedAtUtc, cancellationToken);
+        }
+        catch (DevJobsDetailTimeoutException ex)
+        {
+            warnings.Add(ex.Message);
+            return await CompletePartial(options, warnings, vacancies.Values, jobCardCount, ex.Message, collectedAtUtc);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -149,46 +173,73 @@ public sealed class DevJobsSource(
     private async Task<SourceRunResult> Complete(JobSourceOptions options, List<string> warnings, IEnumerable<JobVacancy> vacancies, int jobCardCount, string? latestSearchHtml, DateTimeOffset collectedAtUtc, CancellationToken cancellationToken)
     {
         var orderedVacancies = vacancies.OrderBy(vacancy => vacancy.ExternalId, StringComparer.OrdinalIgnoreCase).ToList();
-            logger.LogInformation("DevJobs source {Source}: parsed {VacancyCount} vacancies from {JobCardCount} cards", options.Name, orderedVacancies.Count, jobCardCount);
-            if (orderedVacancies.Count < options.MinimumExpectedVacancies)
+        logger.LogInformation("DevJobs source {Source}: parsed {VacancyCount} vacancies from {JobCardCount} cards", options.Name, orderedVacancies.Count, jobCardCount);
+        if (orderedVacancies.Count < options.MinimumExpectedVacancies)
+        {
+            if (latestSearchHtml is not null)
             {
-                if (latestSearchHtml is not null)
-                {
-                    await SaveDiagnosticHtmlAsync(latestSearchHtml, options.Name, collectedAtUtc, cancellationToken);
-                }
-
-                return Failed(options.Name, warnings, $"Parsed {orderedVacancies.Count} vacancies, below minimum {options.MinimumExpectedVacancies}.");
+                await SaveDiagnosticHtmlAsync(latestSearchHtml, options.Name, collectedAtUtc, cancellationToken);
             }
 
-            return new SourceRunResult
-            {
-                Source = options.Name,
-                Success = true,
-                Snapshot = new SourceSnapshot { Source = options.Name, CollectedAtUtc = collectedAtUtc, Vacancies = orderedVacancies },
-                Warnings = warnings
-            };
+            return Failed(options.Name, warnings, $"Parsed {orderedVacancies.Count} vacancies, below minimum {options.MinimumExpectedVacancies}.");
+        }
+
+        return new SourceRunResult
+        {
+            Source = options.Name,
+            Success = true,
+            Snapshot = new SourceSnapshot { Source = options.Name, CollectedAtUtc = collectedAtUtc, Vacancies = orderedVacancies },
+            Warnings = warnings
+        };
+    }
+
+    private Task<SourceRunResult> CompletePartial(JobSourceOptions options, List<string> warnings, IEnumerable<JobVacancy> vacancies, int jobCardCount, string error, DateTimeOffset collectedAtUtc)
+    {
+        var orderedVacancies = vacancies.OrderBy(vacancy => vacancy.ExternalId, StringComparer.OrdinalIgnoreCase).ToList();
+        logger.LogWarning("DevJobs source {Source}: partial result has {VacancyCount} vacancies from {JobCardCount} cards. {Error}", options.Name, orderedVacancies.Count, jobCardCount, error);
+        return Task.FromResult(new SourceRunResult
+        {
+            Source = options.Name,
+            Success = false,
+            IsPartial = true,
+            Snapshot = new SourceSnapshot { Source = options.Name, CollectedAtUtc = collectedAtUtc, Vacancies = orderedVacancies },
+            Error = error,
+            Warnings = warnings
+        });
     }
 
     private async Task<JobVacancy> LoadDetailsAsync(HttpClient client, JobVacancy listedVacancy, string sourceName, DateTimeOffset collectedAtUtc, List<string> warnings, CancellationToken cancellationToken)
     {
-        using var response = await client.GetAsync(listedVacancy.Url, cancellationToken);
-        if (!response.IsSuccessStatusCode)
+        HttpResponseMessage response;
+        try
         {
-            warnings.Add($"Skipped DevJobs detail {listedVacancy.Url}: HTTP {(int)response.StatusCode} {response.ReasonPhrase}.");
-            return listedVacancy;
+            response = await HttpRequestRetryPolicy.GetAsync(client, listedVacancy.Url, logger, sourceName, cancellationToken);
+        }
+        catch (HttpRequestTimeoutException ex)
+        {
+            throw new DevJobsDetailTimeoutException($"{ex.Message} Keeping partial results and leaving the previous snapshot unchanged.");
         }
 
-        var detail = parser.ParseDetail(await response.Content.ReadAsStringAsync(cancellationToken), sourceName, listedVacancy.Url, collectedAtUtc);
-        warnings.AddRange(detail.Warnings);
-        return detail.Vacancy is null ? listedVacancy : listedVacancy with
+        using (response)
         {
-            Title = detail.Vacancy.Title,
-            Company = detail.Vacancy.Company ?? listedVacancy.Company,
-            Location = detail.Vacancy.Location ?? listedVacancy.Location,
-            Description = detail.Vacancy.Description,
-            DatePosted = detail.Vacancy.DatePosted ?? listedVacancy.DatePosted,
-            EmploymentTypes = detail.Vacancy.EmploymentTypes
-        };
+            if (!response.IsSuccessStatusCode)
+            {
+                warnings.Add($"Skipped DevJobs detail {listedVacancy.Url}: HTTP {(int)response.StatusCode} {response.ReasonPhrase}.");
+                return listedVacancy;
+            }
+
+            var detail = parser.ParseDetail(await response.Content.ReadAsStringAsync(cancellationToken), sourceName, listedVacancy.Url, collectedAtUtc);
+            warnings.AddRange(detail.Warnings);
+            return detail.Vacancy is null ? listedVacancy : listedVacancy with
+            {
+                Title = detail.Vacancy.Title,
+                Company = detail.Vacancy.Company ?? listedVacancy.Company,
+                Location = detail.Vacancy.Location ?? listedVacancy.Location,
+                Description = detail.Vacancy.Description,
+                DatePosted = detail.Vacancy.DatePosted ?? listedVacancy.DatePosted,
+                EmploymentTypes = detail.Vacancy.EmploymentTypes
+            };
+        }
     }
 
     private async Task SaveDiagnosticHtmlAsync(string html, string sourceName, DateTimeOffset collectedAtUtc, CancellationToken cancellationToken)
@@ -204,4 +255,6 @@ public sealed class DevJobsSource(
         Error = error,
         Warnings = warnings
     };
+
+    private sealed class DevJobsDetailTimeoutException(string message) : Exception(message);
 }

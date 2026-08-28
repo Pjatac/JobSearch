@@ -1,4 +1,5 @@
 using JobWatcher.Configuration;
+using JobWatcher.Http;
 using JobWatcher.Models;
 using JobWatcher.Utilities;
 using Microsoft.Extensions.Logging;
@@ -46,7 +47,7 @@ public sealed class JobKarovSource(
             {
                 var url = JobKarovUrlBuilder.Build(options, speciality);
                 logger.LogInformation("Fetching JobKarov source {Source}, speciality {Speciality} from {Url}", options.Name, speciality, url);
-                using var response = await client.GetAsync(url, cancellationToken);
+                using var response = await HttpRequestRetryPolicy.GetAsync(client, url, logger, options.Name, cancellationToken);
                 var responseBytes = await response.Content.ReadAsByteArrayAsync(cancellationToken);
                 var html = Encoding.UTF8.GetString(responseBytes);
                 latestHtml = html;

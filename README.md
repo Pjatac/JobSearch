@@ -295,6 +295,11 @@ On the first successful run there is no previous snapshot, so all current vacanc
 
 On later runs, the app emits only vacancies present in the current complete snapshot and absent from the previous successful snapshot.
 
+If a source returns partial results after a transient request failure, the app may still compare the
+partial listing set against the previous successful snapshot and include its new vacancies in
+`new-jobs.json`. Partial results do **not** replace the durable source snapshot, so vacancies that
+were not reached remain eligible to appear on the next run.
+
 When several configured sources return the same vacancy, `new-jobs.json` shows it only once using a normalized title + company output key, with URL/identity fallback. Source snapshots remain separate so filter behavior can still be inspected.
 
 `data/output/duplicate-candidates.json` is a diagnostic report for likely duplicates across different sites, such as JobKarov vs Drushim. It does not affect snapshots, diffs, or `newJobs`; it only surfaces pairs worth reviewing.
@@ -322,6 +327,13 @@ data/snapshots/jobkarov-software.json
 ## Failure Safeguards
 
 For JobKarov, parsing zero vacancies or fewer than `MinimumExpectedVacancies` is a failure. Failed runs do not replace the previous valid snapshot. Raw HTML from failed fetch/parse runs is written to `data/diagnostics/`.
+
+Request timeouts are bounded by `JobWatcher:RequestTimeoutSeconds` (default `30`). Source HTTP
+requests share one retry policy: a request may be retried once after a timeout or internal
+cancellation, using the same URL, request body, headers, cookies, and client identity. HTTP
+responses and anti-bot challenges are not retried. When a source can preserve already collected
+listings after such a failure, it may report `partial_failed`; partial new vacancies are written to
+the output for review, while the previous snapshot is left unchanged.
 
 After a successful run, snapshot retention keeps snapshots for every enabled configured source, including sources that failed in that run. Only snapshots for sources no longer present in the configuration are deleted. A failed source keeps its previous snapshot: deleting it would make the next successful run report every vacancy as new, which matters for sources that fail intermittently.
 

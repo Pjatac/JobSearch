@@ -1,5 +1,6 @@
 using System.Text;
 using JobWatcher.Configuration;
+using JobWatcher.Http;
 using JobWatcher.Models;
 using JobWatcher.Utilities;
 using Microsoft.Extensions.Logging;
@@ -34,7 +35,7 @@ public sealed class AllJobsSource(
             {
                 var url = AllJobsUrlBuilder.Build(options, page);
                 logger.LogInformation("Fetching source {Source} page {Page} from {Url}", options.Name, page, url);
-                using var response = await client.GetAsync(url, cancellationToken);
+                using var response = await HttpRequestRetryPolicy.GetAsync(client, url, logger, options.Name, cancellationToken);
                 var responseBytes = await response.Content.ReadAsByteArrayAsync(cancellationToken);
                 var html = Encoding.UTF8.GetString(responseBytes);
                 logger.LogInformation(

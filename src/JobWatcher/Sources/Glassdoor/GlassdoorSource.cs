@@ -1,4 +1,5 @@
 using JobWatcher.Configuration;
+using JobWatcher.Http;
 using JobWatcher.Models;
 using JobWatcher.Utilities;
 using Microsoft.Extensions.Logging;
@@ -48,7 +49,7 @@ public sealed class GlassdoorSource(
             using var client = httpClientFactory.CreateClient(HttpClientName);
             client.Timeout = TimeSpan.FromSeconds(Math.Max(1, watcherOptions.Value.RequestTimeoutSeconds));
 
-            var apiClient = new GlassdoorSearchApiClient(client);
+            var apiClient = new GlassdoorSearchApiClient(client, logger, options.Name);
             var requestDelay = TimeSpan.FromSeconds(Math.Max(0, options.GlassdoorFilter?.RequestDelaySeconds ?? DefaultRequestDelaySeconds));
             var maxPages = Math.Max(1, options.GlassdoorFilter?.MaxPages ?? 7);
             var jobsPerPage = Math.Max(1, options.GlassdoorFilter?.JobsPerPage ?? 30);
@@ -216,7 +217,7 @@ public sealed class GlassdoorSource(
         await pace(cancellationToken);
         logger.LogInformation("Fetching source {Source} search page from {Url}", options.Name, url);
 
-        using var response = await client.GetAsync(url, cancellationToken);
+        using var response = await HttpRequestRetryPolicy.GetAsync(client, url, logger, options.Name, cancellationToken);
         var html = await response.Content.ReadAsStringAsync(cancellationToken);
 
         var challenge = GlassdoorChallengeDetector.Detect(response.StatusCode, html);
