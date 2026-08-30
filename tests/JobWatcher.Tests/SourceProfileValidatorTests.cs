@@ -35,6 +35,19 @@ public sealed class SourceProfileValidatorTests
     }
 
     [Fact]
+    public void DrushimStructuredProfileAcceptsCategoryIds()
+    {
+        var result = validator.Validate(new JobSourceOptions
+        {
+            Name = "Drushim",
+            Adapter = "Drushim",
+            DrushimFilter = new DrushimFilterOptions { CategoryId = 0, CategoryIds = [5, 6, 24] }
+        });
+
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
     public void AllJobsWithoutPositionIdIsAWarningNotAnError()
     {
         var result = validator.Validate(new JobSourceOptions

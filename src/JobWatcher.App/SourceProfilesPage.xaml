@@ -91,5 +91,63 @@
                 </Grid>
             </Border>
         </Grid>
+        <Grid x:Name="DrushimCategoriesDialog" Grid.ColumnSpan="2" BackgroundColor="#80000000" IsVisible="False" Padding="24">
+            <Border BackgroundColor="{AppThemeBinding Light=White, Dark=#202020}" Stroke="{StaticResource Gray300}" StrokeShape="RoundRectangle 8" MaximumWidthRequest="900" HorizontalOptions="Center" VerticalOptions="Fill">
+                <Grid Padding="24" RowDefinitions="Auto,Auto,*,Auto" RowSpacing="16">
+                    <Label Text="Drushim categories" FontSize="22" FontAttributes="Bold" />
+                    <HorizontalStackLayout Grid.Row="1" Spacing="8">
+                        <Button Text="Select all" Clicked="OnSelectAllDrushimCategoriesClicked" />
+                        <Button Text="Clear" Clicked="OnClearDrushimCategoriesClicked" />
+                    </HorizontalStackLayout>
+                    <CollectionView x:Name="DrushimCategoriesList" Grid.Row="2" SelectionMode="None">
+                        <CollectionView.ItemsLayout><GridItemsLayout Orientation="Vertical" Span="2" HorizontalItemSpacing="20" VerticalItemSpacing="6" /></CollectionView.ItemsLayout>
+                        <CollectionView.ItemTemplate><DataTemplate><HorizontalStackLayout Spacing="4"><CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}" /><Label Text="{Binding DisplayName}" VerticalOptions="Center" LineBreakMode="WordWrap" /></HorizontalStackLayout></DataTemplate></CollectionView.ItemTemplate>
+                    </CollectionView>
+                    <HorizontalStackLayout Grid.Row="3" HorizontalOptions="End" Spacing="8">
+                        <Button Text="Cancel" Clicked="OnCancelDrushimCategoriesClicked" />
+                        <Button Text="Done" Clicked="OnDoneDrushimCategoriesClicked" />
+                    </HorizontalStackLayout>
+                </Grid>
+            </Border>
+        </Grid>
+        <Grid x:Name="DrushimSubcategoriesDialog" Grid.ColumnSpan="2" BackgroundColor="#80000000" IsVisible="False" Padding="24">
+            <Border BackgroundColor="{AppThemeBinding Light=White, Dark=#202020}" Stroke="{StaticResource Gray300}" StrokeShape="RoundRectangle 8" MaximumWidthRequest="1100" HorizontalOptions="Center" VerticalOptions="Fill">
+                <Grid Padding="24" RowDefinitions="Auto,Auto,Auto,*,Auto" RowSpacing="16">
+                    <Label Text="Drushim subcategories" FontSize="22" FontAttributes="Bold" />
+                    <SearchBar x:Name="DrushimSubcategorySearch" Grid.Row="1" Placeholder="Search subcategory, group, or ID" TextChanged="OnDrushimSubcategorySearchTextChanged" />
+                    <HorizontalStackLayout Grid.Row="2"><Button Text="Clear" Clicked="OnClearDrushimSubcategoriesClicked" /></HorizontalStackLayout>
+                    <CollectionView x:Name="DrushimSubcategoriesList" Grid.Row="3" SelectionMode="None" IsGrouped="True">
+                        <CollectionView.ItemsLayout><GridItemsLayout Orientation="Vertical" Span="3" HorizontalItemSpacing="20" VerticalItemSpacing="6" /></CollectionView.ItemsLayout>
+                        <CollectionView.GroupHeaderTemplate><DataTemplate><Label Text="{Binding Category}" FontAttributes="Bold" Margin="0,10,0,4" /></DataTemplate></CollectionView.GroupHeaderTemplate>
+                        <CollectionView.ItemTemplate><DataTemplate><HorizontalStackLayout Spacing="4"><CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}" /><Label Text="{Binding DisplayName}" VerticalOptions="Center" LineBreakMode="WordWrap" /></HorizontalStackLayout></DataTemplate></CollectionView.ItemTemplate>
+                    </CollectionView>
+                    <HorizontalStackLayout Grid.Row="4" HorizontalOptions="End" Spacing="8">
+                        <Button Text="Cancel" Clicked="OnCancelDrushimSubcategoriesClicked" />
+                        <Button Text="Done" Clicked="OnDoneDrushimSubcategoriesClicked" />
+                    </HorizontalStackLayout>
+                </Grid>
+            </Border>
+        </Grid>
+        <Grid x:Name="DrushimLocationsDialog" Grid.ColumnSpan="2" BackgroundColor="#80000000" IsVisible="False" Padding="24">
+            <Border BackgroundColor="{AppThemeBinding Light=White, Dark=#202020}" Stroke="{StaticResource Gray300}" StrokeShape="RoundRectangle 8" MaximumWidthRequest="1100" HorizontalOptions="Center" VerticalOptions="Fill">
+                <Grid Padding="24" RowDefinitions="Auto,Auto,Auto,*,Auto" RowSpacing="16">
+                    <Label Text="Drushim locations" FontSize="22" FontAttributes="Bold" />
+                    <SearchBar x:Name="DrushimLocationSearch" Grid.Row="1" Placeholder="Search location, zone, or ID" TextChanged="OnDrushimLocationSearchTextChanged" />
+                    <HorizontalStackLayout Grid.Row="2" Spacing="8">
+                        <Button Text="Select all" Clicked="OnSelectAllDrushimLocationsClicked" />
+                        <Button Text="Clear" Clicked="OnClearDrushimLocationsClicked" />
+                    </HorizontalStackLayout>
+                    <CollectionView x:Name="DrushimLocationsList" Grid.Row="3" SelectionMode="None" IsGrouped="True">
+                        <CollectionView.ItemsLayout><GridItemsLayout Orientation="Vertical" Span="3" HorizontalItemSpacing="20" VerticalItemSpacing="6" /></CollectionView.ItemsLayout>
+                        <CollectionView.GroupHeaderTemplate><DataTemplate><Label Text="{Binding Zone}" FontAttributes="Bold" Margin="0,10,0,4" /></DataTemplate></CollectionView.GroupHeaderTemplate>
+                        <CollectionView.ItemTemplate><DataTemplate><HorizontalStackLayout Spacing="4"><CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}" /><Label Text="{Binding DisplayName}" VerticalOptions="Center" LineBreakMode="WordWrap" /></HorizontalStackLayout></DataTemplate></CollectionView.ItemTemplate>
+                    </CollectionView>
+                    <HorizontalStackLayout Grid.Row="4" HorizontalOptions="End" Spacing="8">
+                        <Button Text="Cancel" Clicked="OnCancelDrushimLocationsClicked" />
+                        <Button Text="Done" Clicked="OnDoneDrushimLocationsClicked" />
+                    </HorizontalStackLayout>
+                </Grid>
+            </Border>
+        </Grid>
     </Grid>
 </ContentPage>

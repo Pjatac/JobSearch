@@ -67,6 +67,7 @@ public static partial class BrowserSessionOptions
         {
             HeaderOrder = ChromeNavigationHeaderOrder
         };
+        options.Retry.MaximumAttempts = 1;
 
         // Without an exported session the preset owns User-Agent: overriding it would risk stating
         // a different browser version than the handshake does.

@@ -5,11 +5,10 @@ This file is the operational starting point for the next development session. Re
 
 ## Immediate Engineering Priority
 
-Analyze Drushim search responses and finish Drushim profile controls. The next known product task
-is to determine which dynamic lists can be extracted from a Drushim search response, especially
-whether categories and filters are query-dependent. Work from saved diagnostics first; if a live
-request is needed, follow the one-request budget in `AGENTS.md`, save the response under
-`data/diagnostics/`, and continue offline from that file.
+Validate the new Drushim profile controls in the MAUI app. Categories, subcategories, locations,
+scope, experience, and free search words are now editable without raw comma-separated ID fields.
+Work from saved diagnostics first; if a live request is needed, follow the one-request budget in
+`AGENTS.md`, save the response under `data/diagnostics/`, and continue offline from that file.
 
 ## Current Functional State
 
@@ -21,11 +20,16 @@ request is needed, follow the one-request budget in `AGENTS.md`, save the respon
   `C:\Users\pjata\AppData\Local\User Name\com.jobwatcher.app\Data`
 - The Glassdoor session under that root is a secret. Do not read, print, copy, or commit it.
 - Source HTTP requests share a retry policy: one retry after a timeout or internal cancellation,
-  with the same URL, body, headers, cookies, and client identity. HTTP responses and anti-bot
-  challenges are not retried.
+  after a fixed 5-second delay, with the same URL, body, headers, cookies, and client identity.
+  HTTP responses and anti-bot challenges are not retried.
 - Sources may return `partial_failed` output after preserving already collected listings from a
   transient failure. Partial new jobs can be written to `new-jobs.json`, but partial snapshots do
   not replace the last durable source snapshot.
+- Manual run logs under `data/diagnostics/manual-runs/` are pruned whenever a new run log is
+  created. Logs older than 24 hours are deleted; cleanup failures are ignored.
+- Drushim structured profiles support `Query` and `CategoryIds`. When multiple categories are
+  selected, the API source fetches each category separately and deduplicates vacancies by external
+  ID.
 
 ## Secret Tel Aviv Status
 
@@ -51,8 +55,8 @@ the saved diagnostics and test fixtures.
 
 - The `Latest Source Status` UI now puts source/state on the first row and the full message below
   with wrapping. It still needs user validation on a real multi-source run.
-- Friendly ID-to-name hints exist for the known JobKarov, Drushim, and AllJobs values. They are
-  not yet named multi-select controls or complete site catalogs.
+- JobKarov and Drushim now have named profile controls for their main category/role/location
+  selectors. AllJobs still uses friendly ID-to-name hints.
 - JobSwipe.co and Glassdoor remain URL-profile based. Secret Tel Aviv is also search-URL based,
   with a detail-page limit.
 - A configuration change does not clear snapshots automatically. The UI warns about comparison
@@ -83,7 +87,8 @@ Do not use a full `dotnet run` as a single-source diagnostic.
 ## Last Verified Baseline
 
 - Full solution build succeeded with 0 warnings and 0 errors.
-- Offline unit tests passed: 147 tests.
+- Offline unit tests passed: 153 tests.
 - The latest code changes include shared HTTP request retry handling, partial failed source output,
-  explicit cancelled source output, JobKarov role/query/location controls, and README documentation
-  for partial runs.
+  explicit cancelled source output, manual run log retention, JobKarov role/query/location
+  controls, Drushim query/category/subcategory/location controls, and README documentation for
+  partial runs and structured profiles.

@@ -267,11 +267,36 @@ page (`specialInterestLabel`, `cyberSignals`, and `farCommuteLocations`).
           "Size": 2
         },
         "MinimumExpectedVacancies": 1
+      },
+      {
+        "Name": "Drushim-SoftwareRoles",
+        "Adapter": "Drushim",
+        "Enabled": true,
+        "DrushimFilter": {
+          "BaseUrl": "https://www.drushim.co.il",
+          "Query": "",
+          "CategoryId": 6,
+          "CategoryIds": [ 6 ],
+          "SubcategoryIds": [ 69, 183, 372, 380, 616 ],
+          "AreaIds": [ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14 ],
+          "Scopes": [ 1 ],
+          "ExperienceRange": "2-3-4",
+          "GeoLexId": 539071,
+          "IncludeAreaAround": true,
+          "Experience": 3,
+          "Range": 3
+        },
+        "MinimumExpectedVacancies": 1
       }
     ]
   }
 }
 ```
+
+Drushim profiles can combine free search words (`Query`) with one or more category IDs
+(`CategoryIds`). The app editor exposes the IT category catalog, subcategories, and region/city
+area IDs through selection popups; selected categories are fetched one by one and deduplicated in
+the source output.
 
 ## Run
 
@@ -330,7 +355,7 @@ For JobKarov, parsing zero vacancies or fewer than `MinimumExpectedVacancies` is
 
 Request timeouts are bounded by `JobWatcher:RequestTimeoutSeconds` (default `30`). Source HTTP
 requests share one retry policy: a request may be retried once after a timeout or internal
-cancellation, using the same URL, request body, headers, cookies, and client identity. HTTP
+cancellation, after a fixed 5-second delay, using the same URL, request body, headers, cookies, and client identity. HTTP
 responses and anti-bot challenges are not retried. When a source can preserve already collected
 listings after such a failure, it may report `partial_failed`; partial new vacancies are written to
 the output for review, while the previous snapshot is left unchanged.
@@ -338,6 +363,8 @@ the output for review, while the previous snapshot is left unchanged.
 After a successful run, snapshot retention keeps snapshots for every enabled configured source, including sources that failed in that run. Only snapshots for sources no longer present in the configuration are deleted. A failed source keeps its previous snapshot: deleting it would make the next successful run report every vacancy as new, which matters for sources that fail intermittently.
 
 Output history retention keeps only the latest `OutputHistoryRetentionCount` timestamped files in `data/output/history/` after a successful history write. The default is `2`.
+
+Manual run logs in `data/diagnostics/manual-runs/` are pruned whenever a new log is created. Logs older than 24 hours are deleted; the current run log and newer logs are preserved.
 
 A large count drop logs and records a warning when the previous count is at least 10 and the current count is below 50% of the previous count.
 

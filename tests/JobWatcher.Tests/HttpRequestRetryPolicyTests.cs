@@ -23,7 +23,8 @@ public sealed class HttpRequestRetryPolicyTests
             "https://example.test/jobs",
             NullLogger.Instance,
             "Example",
-            CancellationToken.None);
+            CancellationToken.None,
+            TimeSpan.Zero);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(2, calls);
@@ -44,10 +45,34 @@ public sealed class HttpRequestRetryPolicyTests
             "https://example.test/jobs",
             NullLogger.Instance,
             "Example",
-            CancellationToken.None);
+            CancellationToken.None,
+            TimeSpan.Zero);
 
         Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
         Assert.Equal(1, calls);
+    }
+
+    [Fact]
+    public async Task RetriesOnceAfterSessionTimeoutException()
+    {
+        var calls = 0;
+        using var client = new HttpClient(new StubHandler((_, _) =>
+        {
+            calls++;
+            return calls == 1
+                ? throw new InvalidOperationException("The request exceeded the 00:00:30 session timeout.")
+                : new HttpResponseMessage(HttpStatusCode.OK);
+        }));
+
+        using var response = await HttpRequestRetryPolicy.GetAsync(
+            client,
+            "https://example.test/jobs",
+            NullLogger.Instance,
+            "Example",
+            CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(2, calls);
     }
 
     [Fact]
@@ -63,6 +88,29 @@ public sealed class HttpRequestRetryPolicyTests
             NullLogger.Instance,
             "Example",
             cts.Token));
+    }
+
+    [Fact]
+    public async Task PreservesCancellationDuringRetryDelay()
+    {
+        var calls = 0;
+        using var cts = new CancellationTokenSource();
+        using var client = new HttpClient(new StubHandler((_, _) =>
+        {
+            calls++;
+            cts.Cancel();
+            throw new TaskCanceledException("simulated timeout");
+        }));
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => HttpRequestRetryPolicy.GetAsync(
+            client,
+            "https://example.test/jobs",
+            NullLogger.Instance,
+            "Example",
+            cts.Token,
+            TimeSpan.FromSeconds(5)));
+
+        Assert.Equal(1, calls);
     }
 
     private sealed class StubHandler(Func<HttpRequestMessage, CancellationToken, HttpResponseMessage> send) : HttpMessageHandler

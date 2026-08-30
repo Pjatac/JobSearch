@@ -87,65 +87,75 @@ public sealed class DrushimSource(
         using var client = httpClientFactory.CreateClient(HttpClientName);
         client.Timeout = TimeSpan.FromSeconds(Math.Max(1, watcherOptions.Value.RequestTimeoutSeconds));
 
-        var vacancies = new Dictionary<string, JobVacancy>(StringComparer.OrdinalIgnoreCase);
-        var page = 1;
-        var totalPages = 1;
+        var allVacancies = new Dictionary<string, JobVacancy>(StringComparer.OrdinalIgnoreCase);
         int? totalSearchResultCount = null;
+        var filter = options.DrushimFilter ?? throw new InvalidOperationException($"Source '{options.Name}' must define drushimFilter for API search.");
+        var categories = DrushimUrlBuilder.GetCategoryIds(filter);
 
-        while (page <= totalPages)
+        foreach (var categoryId in categories)
         {
-            var url = DrushimUrlBuilder.BuildApiSearch(options, page);
-            logger.LogInformation("Fetching source {Source} page {Page} from {Url}", options.Name, page, url);
-
-            using var response = await HttpRequestRetryPolicy.GetAsync(client, url, logger, options.Name, cancellationToken);
-            var responseBytes = await response.Content.ReadAsByteArrayAsync(cancellationToken);
-            var json = Encoding.UTF8.GetString(responseBytes);
-            logger.LogInformation(
-                "Source {Source} page {Page} HTTP {StatusCode}, response size {ResponseSize}",
-                options.Name,
-                page,
-                (int)response.StatusCode,
-                responseBytes.Length);
-
-            if (!response.IsSuccessStatusCode)
+            var page = 1;
+            var totalPages = 1;
+            int? categoryTotalSearchResultCount = null;
+            while (page <= totalPages)
             {
-                await SaveDiagnosticTextAsync(json, options.Name, collectedAtUtc, "json", cancellationToken);
-                return Failed(options.Name, warnings, $"HTTP {(int)response.StatusCode} {response.ReasonPhrase}");
+                var url = DrushimUrlBuilder.BuildApiSearch(options, page, categoryId);
+                logger.LogInformation("Fetching source {Source}, category {CategoryId}, page {Page} from {Url}", options.Name, categoryId, page, url);
+
+                using var response = await HttpRequestRetryPolicy.GetAsync(client, url, logger, options.Name, cancellationToken);
+                var responseBytes = await response.Content.ReadAsByteArrayAsync(cancellationToken);
+                var json = Encoding.UTF8.GetString(responseBytes);
+                logger.LogInformation(
+                    "Source {Source}, category {CategoryId}, page {Page} HTTP {StatusCode}, response size {ResponseSize}",
+                    options.Name,
+                    categoryId,
+                    page,
+                    (int)response.StatusCode,
+                    responseBytes.Length);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    await SaveDiagnosticTextAsync(json, options.Name, collectedAtUtc, "json", cancellationToken);
+                    return Failed(options.Name, warnings, $"HTTP {(int)response.StatusCode} {response.ReasonPhrase}");
+                }
+
+                var parseResult = apiParser.Parse(json, options.Name, collectedAtUtc);
+                warnings.AddRange(parseResult.Warnings);
+                totalPages = Math.Max(1, parseResult.TotalPages);
+                categoryTotalSearchResultCount ??= parseResult.TotalSearchResultCount;
+
+                foreach (var vacancy in parseResult.Vacancies)
+                {
+                    allVacancies.TryAdd(vacancy.ExternalId, vacancy);
+                }
+
+                logger.LogInformation(
+                    "Source {Source}, category {CategoryId}, page {Page}: API items {ApiItems}, page vacancies {PageVacancies}, total pages {TotalPages}, deduplicated vacancies {VacancyCount}",
+                    options.Name,
+                    categoryId,
+                    page,
+                    parseResult.ResultItemCount,
+                    parseResult.Vacancies.Count,
+                    totalPages,
+                    allVacancies.Count);
+
+                if (parseResult.ResultItemCount == 0 || parseResult.NextPage is null || parseResult.NextPage <= page)
+                {
+                    break;
+                }
+
+                page = parseResult.NextPage.Value;
             }
 
-            var parseResult = apiParser.Parse(json, options.Name, collectedAtUtc);
-            warnings.AddRange(parseResult.Warnings);
-            totalPages = Math.Max(1, parseResult.TotalPages);
-            totalSearchResultCount ??= parseResult.TotalSearchResultCount;
-
-            foreach (var vacancy in parseResult.Vacancies)
-            {
-                vacancies.TryAdd(vacancy.ExternalId, vacancy);
-            }
-
-            logger.LogInformation(
-                "Source {Source} page {Page}: API items {ApiItems}, page vacancies {PageVacancies}, total pages {TotalPages}, deduplicated vacancies {VacancyCount}",
-                options.Name,
-                page,
-                parseResult.ResultItemCount,
-                parseResult.Vacancies.Count,
-                totalPages,
-                vacancies.Count);
-
-            if (parseResult.ResultItemCount == 0 || parseResult.NextPage is null || parseResult.NextPage <= page)
-            {
-                break;
-            }
-
-            page = parseResult.NextPage.Value;
+            totalSearchResultCount = (totalSearchResultCount ?? 0) + (categoryTotalSearchResultCount ?? 0);
         }
 
-        if (totalSearchResultCount is not null && vacancies.Count < totalSearchResultCount)
+        if (totalSearchResultCount is > 0 && allVacancies.Count < totalSearchResultCount)
         {
-            warnings.Add($"Drushim API returned {vacancies.Count} unique vacancies, below advertised total {totalSearchResultCount}.");
+            warnings.Add($"Drushim API returned {allVacancies.Count} unique vacancies, below advertised total {totalSearchResultCount}.");
         }
 
-        var orderedVacancies = vacancies.Values.OrderBy(v => v.ExternalId, StringComparer.OrdinalIgnoreCase).ToList();
+        var orderedVacancies = allVacancies.Values.OrderBy(v => v.ExternalId, StringComparer.OrdinalIgnoreCase).ToList();
         if (orderedVacancies.Count == 0 || orderedVacancies.Count < options.MinimumExpectedVacancies)
         {
             return Failed(options.Name, warnings, $"Parsed {orderedVacancies.Count} vacancies, below minimum {options.MinimumExpectedVacancies}.");

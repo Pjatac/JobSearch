@@ -28,6 +28,53 @@ public partial class SourceProfilesPage : ContentPage
         new("130", "שפלה מישור חוף דרומי", "שפלה מישור חוף דרומי"), new("131", "אשדוד - אשקלון והסביבה", "שפלה מישור חוף דרומי"), new("132", "גדרה - יבנה והסביבה", "שפלה מישור חוף דרומי"), new("133", "נס ציונה - רחובות", "שפלה מישור חוף דרומי"), new("134", "קרית גת והסביבה", "שפלה מישור חוף דרומי"), new("135", "שפלה", "שפלה מישור חוף דרומי"),
         new("150", "דרום", "דרום"), new("151", "אילת וערבה", "דרום"), new("152", "באר שבע והסביבה", "דרום"), new("153", "דרום ים המלח", "דרום"), new("154", "הנגב המערבי", "דרום"), new("155", "ישובי הנגב", "דרום")
     ];
+    private static readonly DrushimCategory[] DrushimCategories =
+    [
+        new(6, "Software"), new(5, "High-tech general"), new(24, "High-tech QA"), new(4, "High-tech hardware"),
+        new(30, "Information security"), new(28, "Internet"), new(10, "Engineering")
+    ];
+    private static readonly DrushimSubcategory[] DrushimSubcategories =
+    [
+        new(703, "AI Developer", "Software", [6]), new(505, "Angular", "Software", [6]), new(307, "Automation Testing", "High-tech QA", [24]),
+        new(616, "Backend", "Software", [6]), new(70, "BI", "High-tech general / Software", [5, 6]), new(372, "C#", "Software", [6]),
+        new(546, "Cloud", "High-tech general / Software", [5, 6]),
+        new(581, "Data Analyst", "High-tech general", [5]), new(582, "Data Engineer", "Software", [6]), new(491, "DevOps", "High-tech general / Software", [5, 6]),
+        new(644, "Frontend", "Software", [6]), new(504, "Full Stack", "Software", [6]), new(209, "General high-tech jobs", "High-tech general", [5]),
+        new(436, "Infrastructure", "High-tech general", [5]), new(68, "JAVA", "Software", [6]), new(460, "Mobile", "Software", [6]),
+        new(69, "NET.", "Software", [6]), new(513, "NodeJS", "Software", [6]), new(548, "PL \\ SQL", "Software", [6]),
+        new(183, "Programmer", "Software", [6]), new(481, "Python", "Software", [6]), new(299, "QA Engineer", "High-tech QA", [24]),
+        new(506, "React", "Software", [6]), new(380, "Software Engineer", "Software", [6]), new(465, "System Architect", "Software", [6]),
+        new(235, "Systems Analyst", "High-tech general", [5]), new(489, "Testing Tools Developer", "Software / High-tech QA", [6, 24]),
+        new(75, "Web Developer", "Software / Internet", [6, 28]), new(315, "Development Team Lead", "Software", [6])
+    ];
+    private static readonly DrushimLocation[] DrushimLocations =
+    [
+        new(1, "Tel Aviv", "Center"), new(2, "Ramat Gan / Givatayim", "Center"), new(3, "Holon / Bat Yam", "Center"),
+        new(4, "Rishon LeTsiyon", "Center"), new(5, "Petah Tikva", "Center"), new(6, "Or Yehuda / Yehud", "Center"),
+        new(7, "Lod / Ramla", "Center"), new(8, "Modi'in", "Center"), new(9, "Rosh HaAyin", "Center"),
+        new(10, "Netanya / Even Yehuda", "Hasharon"), new(11, "Raanana / Kfar Saba", "Hasharon"),
+        new(12, "Herzliya / Ramat Hasharon", "Hasharon"), new(13, "Hod Hasharon", "Hasharon"), new(14, "Hadera", "Hasharon"),
+        new(15, "Ashdod / Gan Yavne", "Shfela"), new(16, "Rehovot / Nes Ziona / Gedera", "Shfela"), new(17, "Yavne", "Shfela"),
+        new(18, "Jerusalem", "Jerusalem"), new(19, "Beit Shemesh", "Jerusalem"), new(20, "Maale Adumim", "Jerusalem"),
+        new(21, "Haifa", "North"), new(22, "Krayot", "North"), new(23, "Acre / Nahariya", "North"), new(24, "Galil / Golan", "North"),
+        new(25, "Tiberias", "North"), new(26, "Afula / Nazareth", "North"), new(27, "Yokneam / Ramat Yishai", "North"),
+        new(28, "Zichron Yaakov / Binyamina", "North"), new(29, "Pardes Hanna Karkur", "North"),
+        new(30, "Beer Sheva", "South"), new(31, "Ashkelon", "South"), new(32, "Kiryat Gat / Kiryat Malakhi", "South"),
+        new(33, "Dimona / Arad / Dead Sea", "South"), new(34, "Eilat / Arava", "South"),
+        new(35, "Abroad", "Abroad"),
+        new(36, "Ariel", "Judea and Samaria"), new(37, "Maale Adumim", "Judea and Samaria"),
+        new(38, "Beitar Illit", "Judea and Samaria"), new(39, "Modiin Illit", "Judea and Samaria"),
+        new(40, "Gush Etzion", "Judea and Samaria"), new(41, "Mateh Binyamin", "Judea and Samaria")
+    ];
+    private static readonly DrushimCodeOption[] DrushimExperienceOptions =
+    [
+        new(1, "No experience"), new(2, "1-2 years"), new(3, "3-4 years"), new(4, "5-6 years"), new(5, "7+ years")
+    ];
+    private static readonly DrushimCodeOption[] DrushimScopeOptions =
+    [
+        new(1, "Full-time"), new(2, "Part-time"), new(3, "Temporary"), new(4, "Shifts"), new(5, "Work from home"), new(6, "Hybrid")
+    ];
+
     private readonly JobWatcherSettingsStore settingsStore;
     private readonly List<JobSourceOptions> sources = [];
     private string? settingsPath;
@@ -54,16 +101,26 @@ public partial class SourceProfilesPage : ContentPage
     private readonly List<JobKarovAreaOption> jobKarovAreaOptions = JobKarovAreas.Select(area => new JobKarovAreaOption(area)).ToList();
     private Label? jobKarovAreasSummary;
     private Entry? drushimBaseUrlEntry;
-    private Entry? drushimCategoryEntry;
-    private Entry? drushimSubcategoryEntry;
-    private Entry? drushimSubcategoriesEntry;
-    private Entry? drushimAreasEntry;
-    private Entry? drushimScopesEntry;
-    private Entry? drushimExperienceRangeEntry;
+    private Entry? drushimQueryEntry;
+    private readonly HashSet<int> drushimSelectedCategories = [];
+    private HashSet<int>? drushimCategoryDialogSelection;
+    private readonly List<DrushimCategoryOption> drushimCategoryOptions = DrushimCategories.Select(category => new DrushimCategoryOption(category)).ToList();
+    private Label? drushimCategoriesSummary;
+    private readonly HashSet<int> drushimSelectedSubcategories = [];
+    private HashSet<int>? drushimSubcategoryDialogSelection;
+    private readonly List<DrushimSubcategoryOption> drushimSubcategoryOptions = DrushimSubcategories.Select(subcategory => new DrushimSubcategoryOption(subcategory)).ToList();
+    private Label? drushimSubcategoriesSummary;
+    private readonly HashSet<int> drushimSelectedAreas = [];
+    private HashSet<int>? drushimLocationDialogSelection;
+    private readonly List<DrushimLocationOption> drushimLocationOptions = DrushimLocations.Select(location => new DrushimLocationOption(location)).ToList();
+    private Label? drushimLocationsSummary;
+    private readonly Dictionary<int, CheckBox> drushimExperienceChecks = [];
+    private readonly Dictionary<int, CheckBox> drushimScopeChecks = [];
     private Entry? drushimGeoLexEntry;
     private Switch? drushimIncludeAreaAroundSwitch;
     private Entry? drushimExperienceEntry;
     private Entry? drushimRangeEntry;
+    private VerticalStackLayout? drushimAdvancedContent;
     private Entry? allJobsBaseUrlEntry;
     private Entry? allJobsPositionEntry;
     private Entry? allJobsPositionsEntry;
@@ -267,7 +324,7 @@ public partial class SourceProfilesPage : ContentPage
         return adapter switch
         {
             "JobKarov" => new JobSourceOptions { Name = name, Adapter = adapter, JobKarovFilter = new JobKarovFilterOptions { Speciality = string.Empty } },
-            "Drushim" => new JobSourceOptions { Name = name, Adapter = adapter, DrushimFilter = new DrushimFilterOptions { CategoryId = 0 } },
+            "Drushim" => new JobSourceOptions { Name = name, Adapter = adapter, DrushimFilter = new DrushimFilterOptions { CategoryId = 6, CategoryIds = [6] } },
             "AllJobs" => new JobSourceOptions { Name = name, Adapter = adapter, AllJobsFilter = new AllJobsFilterOptions() },
             "JobSwipeCo" => new JobSourceOptions { Name = name, Adapter = adapter, JobSwipeCoFilter = new JobSwipeCoFilterOptions() },
             "Glassdoor" => new JobSourceOptions { Name = name, Adapter = adapter, Optional = true, GlassdoorFilter = new GlassdoorFilterOptions() },
@@ -405,14 +462,10 @@ public partial class SourceProfilesPage : ContentPage
 
     private JobSourceOptions BuildDrushimPreview(JobSourceOptions source)
     {
-        _ = TryParseInt(drushimCategoryEntry?.Text, out var categoryId);
-        _ = TryParseOptionalInt(drushimSubcategoryEntry?.Text, out var subcategoryId);
-        _ = TryParseIntList(drushimSubcategoriesEntry?.Text, out var subcategoryIds);
-        _ = TryParseIntList(drushimAreasEntry?.Text, out var areaIds);
-        _ = TryParseIntList(drushimScopesEntry?.Text, out var scopes);
         _ = TryParseOptionalInt(drushimGeoLexEntry?.Text, out var geoLexId);
         _ = TryParseOptionalInt(drushimExperienceEntry?.Text, out var experience);
         _ = TryParseOptionalInt(drushimRangeEntry?.Text, out var range);
+        var categoryIds = SelectedDrushimCategories();
         return new JobSourceOptions
         {
             Name = source.Name,
@@ -421,12 +474,13 @@ public partial class SourceProfilesPage : ContentPage
             DrushimFilter = new DrushimFilterOptions
             {
                 BaseUrl = drushimBaseUrlEntry?.Text?.Trim() ?? string.Empty,
-                CategoryId = categoryId,
-                SubcategoryId = subcategoryId,
-                SubcategoryIds = subcategoryIds,
-                AreaIds = areaIds,
-                Scopes = scopes,
-                ExperienceRange = drushimExperienceRangeEntry?.Text?.Trim(),
+                Query = drushimQueryEntry?.Text?.Trim() ?? string.Empty,
+                CategoryId = categoryIds.FirstOrDefault(),
+                CategoryIds = categoryIds,
+                SubcategoryIds = SelectedDrushimSubcategories(),
+                AreaIds = SelectedDrushimAreas(),
+                Scopes = SelectedDrushimScopes(),
+                ExperienceRange = SelectedDrushimExperienceRange(),
                 GeoLexId = geoLexId,
                 IncludeAreaAround = drushimIncludeAreaAroundSwitch?.IsToggled ?? false,
                 Experience = experience,
@@ -512,28 +566,31 @@ public partial class SourceProfilesPage : ContentPage
         var drushimFilter = previous.DrushimFilter;
         if (string.Equals(previous.Adapter, "Drushim", StringComparison.OrdinalIgnoreCase) && drushimBaseUrlEntry is not null)
         {
-            if (!TryParseInt(drushimCategoryEntry?.Text, out var categoryId) ||
-                !TryParseOptionalInt(drushimSubcategoryEntry?.Text, out var subcategoryId) ||
-                !TryParseIntList(drushimSubcategoriesEntry?.Text, out var subcategoryIds) ||
-                !TryParseIntList(drushimAreasEntry?.Text, out var areaIds) ||
-                !TryParseIntList(drushimScopesEntry?.Text, out var scopes) ||
-                !TryParseOptionalInt(drushimGeoLexEntry?.Text, out var geoLexId) ||
+            if (!TryParseOptionalInt(drushimGeoLexEntry?.Text, out var geoLexId) ||
                 !TryParseOptionalInt(drushimExperienceEntry?.Text, out var experience) ||
                 !TryParseOptionalInt(drushimRangeEntry?.Text, out var range))
             {
-                await DisplayAlertAsync("Check the profile", "Drushim numeric fields must contain whole numbers separated by commas.", "OK");
+                await DisplayAlertAsync("Check the profile", "Drushim numeric fields must contain whole numbers.", "OK");
+                return false;
+            }
+
+            var categoryIds = SelectedDrushimCategories();
+            if (categoryIds.Count == 0)
+            {
+                await DisplayAlertAsync("Check the profile", "Choose at least one Drushim category.", "OK");
                 return false;
             }
 
             drushimFilter = new DrushimFilterOptions
             {
                 BaseUrl = drushimBaseUrlEntry.Text?.Trim() ?? string.Empty,
-                CategoryId = categoryId,
-                SubcategoryId = subcategoryId,
-                SubcategoryIds = subcategoryIds,
-                AreaIds = areaIds,
-                Scopes = scopes,
-                ExperienceRange = drushimExperienceRangeEntry?.Text?.Trim(),
+                Query = drushimQueryEntry?.Text?.Trim() ?? string.Empty,
+                CategoryId = categoryIds[0],
+                CategoryIds = categoryIds,
+                SubcategoryIds = SelectedDrushimSubcategories(),
+                AreaIds = SelectedDrushimAreas(),
+                Scopes = SelectedDrushimScopes(),
+                ExperienceRange = SelectedDrushimExperienceRange(),
                 GeoLexId = geoLexId,
                 IncludeAreaAround = drushimIncludeAreaAroundSwitch?.IsToggled ?? false,
                 Experience = experience,
@@ -779,25 +836,84 @@ public partial class SourceProfilesPage : ContentPage
             return;
         }
 
-        var filter = source.DrushimFilter ?? new DrushimFilterOptions { CategoryId = 0 };
+        var filter = source.DrushimFilter ?? new DrushimFilterOptions { CategoryId = 6, CategoryIds = [6] };
         Editor.Children.Add(new BoxView { HeightRequest = 1, Margin = new Thickness(0, 8), BackgroundColor = Colors.LightGray });
         Editor.Children.Add(new Label { Text = "Drushim search", FontSize = 18, FontAttributes = FontAttributes.Bold });
         drushimBaseUrlEntry = AddEntry("Base URL", filter.BaseUrl);
-        drushimCategoryEntry = AddEntry("Category ID", filter.CategoryId.ToString());
-        AddKnownValuesHint("6 - Software.");
-        drushimSubcategoryEntry = AddEntry("Single subcategory ID", filter.SubcategoryId?.ToString() ?? string.Empty);
-        AddKnownValuesHint("616 - Backend; 69 - .NET; 183 - Programmer; 372 - C#; 380 - Software Engineer; 209 - High-tech general.");
-        drushimSubcategoriesEntry = AddEntry("Subcategory IDs", string.Join(", ", filter.SubcategoryIds));
-        AddKnownValuesHint("616 - Backend; 69 - .NET; 183 - Programmer; 372 - C#; 380 - Software Engineer; 209 - High-tech general.");
-        drushimAreasEntry = AddEntry("Area IDs", string.Join(", ", filter.AreaIds));
-        AddKnownValuesHint("1-14 - Center and Hasharon coverage used by the default profile.");
-        drushimScopesEntry = AddEntry("Scope IDs", string.Join(", ", filter.Scopes));
-        AddKnownValuesHint("1 - Full-time.");
-        drushimExperienceRangeEntry = AddEntry("Experience range", filter.ExperienceRange ?? string.Empty);
-        drushimGeoLexEntry = AddEntry("GeoLex ID", filter.GeoLexId?.ToString() ?? string.Empty);
-        drushimIncludeAreaAroundSwitch = AddSwitch("Include nearby area", filter.IncludeAreaAround);
-        drushimExperienceEntry = AddEntry("Experience", filter.Experience?.ToString() ?? string.Empty);
-        drushimRangeEntry = AddEntry("Range", filter.Range?.ToString() ?? string.Empty);
+        drushimQueryEntry = AddEntry("Search words", filter.Query);
+
+        Editor.Children.Add(new Label { Text = "Categories", FontAttributes = FontAttributes.Bold });
+        drushimSelectedCategories.Clear();
+        var categoryIds = filter.CategoryIds.Count > 0 ? filter.CategoryIds : filter.CategoryId > 0 ? [filter.CategoryId] : [6];
+        drushimSelectedCategories.UnionWith(categoryIds);
+        var chooseCategoriesButton = new Button { Text = "Choose categories" };
+        chooseCategoriesButton.Clicked += OnChooseDrushimCategoriesClicked;
+        Editor.Children.Add(chooseCategoriesButton);
+        drushimCategoriesSummary = new Label { TextColor = Colors.Gray, FontSize = 12 };
+        Editor.Children.Add(drushimCategoriesSummary);
+        UpdateDrushimCategoriesSummary();
+
+        var legacySubcategories = filter.SubcategoryIds.Count > 0
+            ? filter.SubcategoryIds
+            : filter.SubcategoryId is int subcategoryId ? [subcategoryId] : [];
+        drushimSelectedSubcategories.Clear();
+        drushimSelectedSubcategories.UnionWith(legacySubcategories);
+        var chooseSubcategoriesButton = new Button { Text = "Choose subcategories" };
+        chooseSubcategoriesButton.Clicked += OnChooseDrushimSubcategoriesClicked;
+        Editor.Children.Add(chooseSubcategoriesButton);
+        drushimSubcategoriesSummary = new Label { TextColor = Colors.Gray, FontSize = 12 };
+        Editor.Children.Add(drushimSubcategoriesSummary);
+        UpdateDrushimSubcategoriesSummary();
+
+        Editor.Children.Add(new Label { Text = "Locations", FontAttributes = FontAttributes.Bold });
+        drushimSelectedAreas.Clear();
+        drushimSelectedAreas.UnionWith(filter.AreaIds);
+        var chooseLocationsButton = new Button { Text = "Choose locations" };
+        chooseLocationsButton.Clicked += OnChooseDrushimLocationsClicked;
+        Editor.Children.Add(chooseLocationsButton);
+        drushimLocationsSummary = new Label { TextColor = Colors.Gray, FontSize = 12 };
+        Editor.Children.Add(drushimLocationsSummary);
+        UpdateDrushimLocationsSummary();
+
+        Editor.Children.Add(new Label { Text = "Experience", FontAttributes = FontAttributes.Bold });
+        drushimExperienceChecks.Clear();
+        var selectedExperience = SplitIds(filter.ExperienceRange).Select(value => int.TryParse(value, out var parsed) ? parsed : 0).Where(value => value > 0).ToHashSet();
+        foreach (var option in DrushimExperienceOptions)
+        {
+            var checkbox = new CheckBox { IsChecked = selectedExperience.Contains(option.Id), VerticalOptions = LayoutOptions.Center };
+            checkbox.CheckedChanged += OnEditorValueChanged;
+            drushimExperienceChecks[option.Id] = checkbox;
+            Editor.Children.Add(new HorizontalStackLayout
+            {
+                Spacing = 4,
+                Children = { checkbox, new Label { Text = option.DisplayName, VerticalOptions = LayoutOptions.Center } }
+            });
+        }
+
+        Editor.Children.Add(new Label { Text = "Scopes", FontAttributes = FontAttributes.Bold });
+        drushimScopeChecks.Clear();
+        var selectedScopes = filter.Scopes.ToHashSet();
+        foreach (var option in DrushimScopeOptions)
+        {
+            var checkbox = new CheckBox { IsChecked = selectedScopes.Contains(option.Id), VerticalOptions = LayoutOptions.Center };
+            checkbox.CheckedChanged += OnEditorValueChanged;
+            drushimScopeChecks[option.Id] = checkbox;
+            Editor.Children.Add(new HorizontalStackLayout
+            {
+                Spacing = 4,
+                Children = { checkbox, new Label { Text = option.DisplayName, VerticalOptions = LayoutOptions.Center } }
+            });
+        }
+
+        var advancedButton = new Button { Text = "Advanced" };
+        advancedButton.Clicked += OnToggleDrushimAdvancedClicked;
+        Editor.Children.Add(advancedButton);
+        drushimAdvancedContent = new VerticalStackLayout { Spacing = 12, IsVisible = false };
+        Editor.Children.Add(drushimAdvancedContent);
+        drushimGeoLexEntry = AddEntry(drushimAdvancedContent, "Search area anchor", filter.GeoLexId?.ToString() ?? string.Empty);
+        drushimIncludeAreaAroundSwitch = AddSwitch(drushimAdvancedContent, "Include nearby area", filter.IncludeAreaAround);
+        drushimExperienceEntry = AddEntry(drushimAdvancedContent, "Search mode", filter.Experience?.ToString() ?? string.Empty);
+        drushimRangeEntry = AddEntry(drushimAdvancedContent, "Nearby range", filter.Range?.ToString() ?? string.Empty);
     }
 
     private void AddAllJobsFields(JobSourceOptions source)
@@ -1242,6 +1358,232 @@ public partial class SourceProfilesPage : ContentPage
         if (jobKarovAreasSummary is not null) jobKarovAreasSummary.Text = jobKarovSelectedAreas.Count == 0 ? "No locations selected" : $"{jobKarovSelectedAreas.Count} locations selected";
     }
 
+    private void OnToggleDrushimAdvancedClicked(object? sender, EventArgs e)
+    {
+        if (drushimAdvancedContent is not null)
+        {
+            drushimAdvancedContent.IsVisible = !drushimAdvancedContent.IsVisible;
+        }
+    }
+
+    private IReadOnlyList<int> SelectedDrushimCategories() => drushimSelectedCategories.OrderBy(id => id).ToList();
+    private IReadOnlyList<int> SelectedDrushimSubcategories() => drushimSelectedSubcategories.OrderBy(id => id).ToList();
+    private IReadOnlyList<int> SelectedDrushimAreas() => drushimSelectedAreas.OrderBy(id => id).ToList();
+    private IReadOnlyList<int> SelectedDrushimScopes() => drushimScopeChecks.Where(pair => pair.Value.IsChecked).Select(pair => pair.Key).OrderBy(id => id).ToList();
+
+    private string? SelectedDrushimExperienceRange()
+    {
+        var selected = drushimExperienceChecks.Where(pair => pair.Value.IsChecked).Select(pair => pair.Key).OrderBy(id => id).ToList();
+        return selected.Count == 0 ? null : string.Join("-", selected);
+    }
+
+    private void OnChooseDrushimCategoriesClicked(object? sender, EventArgs e)
+    {
+        drushimCategoryDialogSelection = new HashSet<int>(drushimSelectedCategories);
+        foreach (var option in drushimCategoryOptions)
+        {
+            option.IsSelected = drushimCategoryDialogSelection.Contains(option.Category.Id);
+        }
+
+        DrushimCategoriesList.ItemsSource = drushimCategoryOptions;
+        DrushimCategoriesDialog.IsVisible = true;
+    }
+
+    private void OnSelectAllDrushimCategoriesClicked(object? sender, EventArgs e)
+    {
+        foreach (var option in drushimCategoryOptions)
+        {
+            option.IsSelected = true;
+        }
+
+        DrushimCategoriesList.ItemsSource = drushimCategoryOptions.ToList();
+    }
+
+    private void OnClearDrushimCategoriesClicked(object? sender, EventArgs e)
+    {
+        foreach (var option in drushimCategoryOptions)
+        {
+            option.IsSelected = false;
+        }
+
+        DrushimCategoriesList.ItemsSource = drushimCategoryOptions.ToList();
+    }
+
+    private void OnCancelDrushimCategoriesClicked(object? sender, EventArgs e)
+    {
+        drushimCategoryDialogSelection = null;
+        DrushimCategoriesDialog.IsVisible = false;
+    }
+
+    private void OnDoneDrushimCategoriesClicked(object? sender, EventArgs e)
+    {
+        if (drushimCategoryDialogSelection is not null)
+        {
+            drushimSelectedCategories.Clear();
+            drushimSelectedCategories.UnionWith(drushimCategoryOptions.Where(option => option.IsSelected).Select(option => option.Category.Id));
+            UpdateDrushimCategoriesSummary();
+            UpdateGeneratedUrlPreview();
+        }
+
+        drushimCategoryDialogSelection = null;
+        DrushimCategoriesDialog.IsVisible = false;
+    }
+
+    private void UpdateDrushimCategoriesSummary()
+    {
+        if (drushimCategoriesSummary is not null)
+        {
+            drushimCategoriesSummary.Text = drushimSelectedCategories.Count == 0 ? "No categories selected" : $"{drushimSelectedCategories.Count} categories selected";
+        }
+    }
+
+    private void OnChooseDrushimSubcategoriesClicked(object? sender, EventArgs e)
+    {
+        drushimSubcategoryDialogSelection = new HashSet<int>(drushimSelectedSubcategories);
+        foreach (var option in drushimSubcategoryOptions)
+        {
+            option.IsSelected = drushimSubcategoryDialogSelection.Contains(option.Subcategory.Id);
+        }
+
+        DrushimSubcategorySearch.Text = string.Empty;
+        RebuildDrushimSubcategories();
+        DrushimSubcategoriesDialog.IsVisible = true;
+    }
+
+    private void OnDrushimSubcategorySearchTextChanged(object? sender, TextChangedEventArgs e) => RebuildDrushimSubcategories();
+
+    private void RebuildDrushimSubcategories()
+    {
+        if (drushimSubcategoryDialogSelection is null)
+        {
+            return;
+        }
+
+        var term = DrushimSubcategorySearch.Text?.Trim() ?? string.Empty;
+        DrushimSubcategoriesList.ItemsSource = drushimSubcategoryOptions
+            .Where(option => string.IsNullOrWhiteSpace(term) || option.SearchText.Contains(term, StringComparison.OrdinalIgnoreCase))
+            .GroupBy(option => option.Subcategory.Group)
+            .Select(group => new DrushimSubcategoryGroup(group.Key, group))
+            .ToList();
+    }
+
+    private void OnClearDrushimSubcategoriesClicked(object? sender, EventArgs e)
+    {
+        foreach (var option in drushimSubcategoryOptions)
+        {
+            option.IsSelected = false;
+        }
+
+        RebuildDrushimSubcategories();
+    }
+
+    private void OnCancelDrushimSubcategoriesClicked(object? sender, EventArgs e)
+    {
+        drushimSubcategoryDialogSelection = null;
+        DrushimSubcategoriesDialog.IsVisible = false;
+    }
+
+    private void OnDoneDrushimSubcategoriesClicked(object? sender, EventArgs e)
+    {
+        if (drushimSubcategoryDialogSelection is not null)
+        {
+            drushimSelectedSubcategories.Clear();
+            drushimSelectedSubcategories.UnionWith(drushimSubcategoryOptions.Where(option => option.IsSelected).Select(option => option.Subcategory.Id));
+            UpdateDrushimSubcategoriesSummary();
+            UpdateGeneratedUrlPreview();
+        }
+
+        drushimSubcategoryDialogSelection = null;
+        DrushimSubcategoriesDialog.IsVisible = false;
+    }
+
+    private void UpdateDrushimSubcategoriesSummary()
+    {
+        if (drushimSubcategoriesSummary is not null)
+        {
+            drushimSubcategoriesSummary.Text = drushimSelectedSubcategories.Count == 0 ? "No subcategories selected" : $"{drushimSelectedSubcategories.Count} subcategories selected";
+        }
+    }
+
+    private void OnChooseDrushimLocationsClicked(object? sender, EventArgs e)
+    {
+        drushimLocationDialogSelection = new HashSet<int>(drushimSelectedAreas);
+        foreach (var option in drushimLocationOptions)
+        {
+            option.IsSelected = drushimLocationDialogSelection.Contains(option.Location.Id);
+        }
+
+        DrushimLocationSearch.Text = string.Empty;
+        RebuildDrushimLocations();
+        DrushimLocationsDialog.IsVisible = true;
+    }
+
+    private void OnDrushimLocationSearchTextChanged(object? sender, TextChangedEventArgs e) => RebuildDrushimLocations();
+
+    private void RebuildDrushimLocations()
+    {
+        if (drushimLocationDialogSelection is null)
+        {
+            return;
+        }
+
+        var term = DrushimLocationSearch.Text?.Trim() ?? string.Empty;
+        DrushimLocationsList.ItemsSource = drushimLocationOptions
+            .Where(option => string.IsNullOrWhiteSpace(term) || option.SearchText.Contains(term, StringComparison.OrdinalIgnoreCase))
+            .GroupBy(option => option.Location.Zone)
+            .Select(group => new DrushimLocationGroup(group.Key, group))
+            .ToList();
+    }
+
+    private void OnSelectAllDrushimLocationsClicked(object? sender, EventArgs e)
+    {
+        var term = DrushimLocationSearch.Text?.Trim() ?? string.Empty;
+        foreach (var option in drushimLocationOptions.Where(option => string.IsNullOrWhiteSpace(term) || option.SearchText.Contains(term, StringComparison.OrdinalIgnoreCase)))
+        {
+            option.IsSelected = true;
+        }
+
+        RebuildDrushimLocations();
+    }
+
+    private void OnClearDrushimLocationsClicked(object? sender, EventArgs e)
+    {
+        foreach (var option in drushimLocationOptions)
+        {
+            option.IsSelected = false;
+        }
+
+        RebuildDrushimLocations();
+    }
+
+    private void OnCancelDrushimLocationsClicked(object? sender, EventArgs e)
+    {
+        drushimLocationDialogSelection = null;
+        DrushimLocationsDialog.IsVisible = false;
+    }
+
+    private void OnDoneDrushimLocationsClicked(object? sender, EventArgs e)
+    {
+        if (drushimLocationDialogSelection is not null)
+        {
+            drushimSelectedAreas.Clear();
+            drushimSelectedAreas.UnionWith(drushimLocationOptions.Where(option => option.IsSelected).Select(option => option.Location.Id));
+            UpdateDrushimLocationsSummary();
+            UpdateGeneratedUrlPreview();
+        }
+
+        drushimLocationDialogSelection = null;
+        DrushimLocationsDialog.IsVisible = false;
+    }
+
+    private void UpdateDrushimLocationsSummary()
+    {
+        if (drushimLocationsSummary is not null)
+        {
+            drushimLocationsSummary.Text = drushimSelectedAreas.Count == 0 ? "No locations selected" : $"{drushimSelectedAreas.Count} locations selected";
+        }
+    }
+
     private static IReadOnlyList<string> SplitLines(string? value)
     {
         return string.IsNullOrWhiteSpace(value)
@@ -1331,6 +1673,41 @@ public partial class SourceProfilesPage : ContentPage
     private sealed class JobKarovAreaGroup(string region, IEnumerable<JobKarovAreaOption> areas) : List<JobKarovAreaOption>(areas)
     {
         public string Region { get; } = region;
+    }
+    private sealed record DrushimCategory(int Id, string Name);
+    private sealed record DrushimSubcategory(int Id, string Name, string Group, IReadOnlyList<int> CategoryIds);
+    private sealed record DrushimLocation(int Id, string Name, string Zone);
+    private sealed record DrushimCodeOption(int Id, string Name)
+    {
+        public string DisplayName => $"{Name} ({Id})";
+    }
+    private sealed class DrushimCategoryOption(DrushimCategory category)
+    {
+        public DrushimCategory Category { get; } = category;
+        public string DisplayName => $"{Category.Name} ({Category.Id})";
+        public bool IsSelected { get; set; }
+    }
+    private sealed class DrushimSubcategoryOption(DrushimSubcategory subcategory)
+    {
+        public DrushimSubcategory Subcategory { get; } = subcategory;
+        public string DisplayName => $"{Subcategory.Name} ({Subcategory.Id})";
+        public string SearchText => $"{Subcategory.Name} {Subcategory.Group} {Subcategory.Id}";
+        public bool IsSelected { get; set; }
+    }
+    private sealed class DrushimSubcategoryGroup(string category, IEnumerable<DrushimSubcategoryOption> subcategories) : List<DrushimSubcategoryOption>(subcategories)
+    {
+        public string Category { get; } = category;
+    }
+    private sealed class DrushimLocationOption(DrushimLocation location)
+    {
+        public DrushimLocation Location { get; } = location;
+        public string DisplayName => $"{Location.Name} ({Location.Id})";
+        public string SearchText => $"{Location.Name} {Location.Zone} {Location.Id}";
+        public bool IsSelected { get; set; }
+    }
+    private sealed class DrushimLocationGroup(string zone, IEnumerable<DrushimLocationOption> locations) : List<DrushimLocationOption>(locations)
+    {
+        public string Zone { get; } = zone;
     }
     private sealed record ProfileListItem(string Name, string Adapter);
 }

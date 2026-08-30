@@ -91,7 +91,7 @@ public sealed class SourceProfileValidator
         {
             errors.Add("Drushim requires a direct URL or structured filters.");
         }
-        else if (source.DrushimFilter.CategoryId <= 0)
+        else if (Sources.Drushim.DrushimUrlBuilder.GetCategoryIds(source.DrushimFilter).Any(categoryId => categoryId <= 0))
         {
             errors.Add("Drushim category ID must be positive for structured filters.");
         }

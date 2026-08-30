@@ -19,13 +19,16 @@ public static class DrushimUrlBuilder
 
         var filter = options.DrushimFilter;
         var baseUri = new Uri(filter.BaseUrl.TrimEnd('/') + "/");
+        var categories = GetCategoryIds(filter);
         var subcategories = filter.SubcategoryIds.Count > 0
             ? filter.SubcategoryIds
             : filter.SubcategoryId is { } subcategoryId ? [subcategoryId] : [];
+        var categoryId = categories[0];
+        var hasQuery = !string.IsNullOrWhiteSpace(filter.Query);
 
-        var path = subcategories.Count > 0
+        var path = subcategories.Count > 0 && !hasQuery
             ? $"jobs/subcat/{string.Join('-', subcategories)}/"
-            : $"jobs/cat{filter.CategoryId}/";
+            : $"jobs/cat{categoryId}/";
 
         if (filter.AreaIds.Count > 0)
         {
@@ -35,9 +38,14 @@ public static class DrushimUrlBuilder
         var builder = new UriBuilder(new Uri(baseUri, path));
         var query = HttpUtility.ParseQueryString(string.Empty);
 
-        if (subcategories.Count > 0)
+        if (subcategories.Count > 0 && !hasQuery)
         {
-            query["catdir"] = filter.CategoryId.ToString();
+            query["catdir"] = categoryId.ToString();
+        }
+
+        if (hasQuery)
+        {
+            query["searchterm"] = filter.Query.Trim();
         }
 
         if (filter.Scopes.Count > 0)
@@ -74,7 +82,7 @@ public static class DrushimUrlBuilder
         return builder.Uri.ToString();
     }
 
-    public static string BuildApiSearch(JobSourceOptions options, int page)
+    public static string BuildApiSearch(JobSourceOptions options, int page, int? categoryIdOverride = null)
     {
         if (options.DrushimFilter is null)
         {
@@ -84,15 +92,23 @@ public static class DrushimUrlBuilder
         var filter = options.DrushimFilter;
         var builder = new UriBuilder(new Uri(new Uri(filter.BaseUrl.TrimEnd('/') + "/"), "api/jobs/search"));
         var query = HttpUtility.ParseQueryString(string.Empty);
+        var categories = GetCategoryIds(filter);
+        var categoryId = categoryIdOverride ?? categories[0];
         var subcategories = filter.SubcategoryIds.Count > 0
             ? filter.SubcategoryIds
             : filter.SubcategoryId is { } subcategoryId ? [subcategoryId] : [];
+        var hasQuery = !string.IsNullOrWhiteSpace(filter.Query);
 
-        query["catdir"] = filter.CategoryId.ToString();
+        query["catdir"] = categoryId.ToString();
 
-        if (subcategories.Count > 0)
+        if (subcategories.Count > 0 && !hasQuery)
         {
             query["subcat"] = string.Join("-", subcategories);
+        }
+
+        if (hasQuery)
+        {
+            query["searchterm"] = filter.Query.Trim();
         }
 
         if (filter.AreaIds.Count > 0)
@@ -132,5 +148,12 @@ public static class DrushimUrlBuilder
 
         builder.Query = query.ToString();
         return $"{builder.Uri}&isAA=true&page={Math.Max(1, page)}";
+    }
+
+    public static IReadOnlyList<int> GetCategoryIds(DrushimFilterOptions filter)
+    {
+        return filter.CategoryIds.Count > 0
+            ? filter.CategoryIds
+            : [filter.CategoryId];
     }
 }

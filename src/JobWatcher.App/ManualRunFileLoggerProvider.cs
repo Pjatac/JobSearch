@@ -1,10 +1,12 @@
 using System.Text;
+using JobWatcher.Utilities;
 using Microsoft.Extensions.Logging;
 
 namespace JobWatcher.App;
 
 internal sealed class ManualRunFileLoggerProvider(string path) : ILoggerProvider
 {
+    private static readonly TimeSpan LogRetention = TimeSpan.FromHours(24);
     private readonly object writeLock = new();
 
     public ILogger CreateLogger(string categoryName) => new ManualRunFileLogger(this, categoryName);
@@ -16,8 +18,19 @@ internal sealed class ManualRunFileLoggerProvider(string path) : ILoggerProvider
     public static string CreateLogPath()
     {
         var directory = Path.Combine(FileSystem.AppDataDirectory, "data", "diagnostics", "manual-runs");
+        return CreateLogPath(directory, DateTimeOffset.UtcNow);
+    }
+
+    internal static string CreateLogPath(string directory, DateTimeOffset now)
+    {
         Directory.CreateDirectory(directory);
-        return Path.Combine(directory, $"run-{DateTimeOffset.UtcNow:yyyyMMddTHHmmssfffZ}.log");
+        DeleteExpiredLogs(directory, now);
+        return Path.Combine(directory, $"run-{now:yyyyMMddTHHmmssfffZ}.log");
+    }
+
+    private static void DeleteExpiredLogs(string directory, DateTimeOffset now)
+    {
+        LogFileRetention.DeleteOlderThan(directory, "run-*.log", now, LogRetention);
     }
 
     private void Write(LogLevel logLevel, string categoryName, string message, Exception? exception)

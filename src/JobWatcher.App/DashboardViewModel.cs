@@ -229,7 +229,7 @@ public sealed record SourceProfileSummary(string Name, string Adapter, bool Enab
         var details = adapter switch
         {
             "JobKarov" when source.JobKarovFilter is { } filter => $"{(filter.Specialities.Count > 0 ? filter.Specialities.Count : string.IsNullOrWhiteSpace(filter.Speciality) ? 0 : 1)} categories | {filter.Roles.Count} roles | {filter.Areas.Count} areas | {(string.IsNullOrWhiteSpace(filter.Query) ? "no query" : "query")}",
-            "Drushim" when source.DrushimFilter is { } filter => $"Category {filter.CategoryId} | {filter.SubcategoryIds.Count} subcategories | {filter.AreaIds.Count} areas",
+            "Drushim" when source.DrushimFilter is { } filter => $"{(filter.CategoryIds.Count > 0 ? filter.CategoryIds.Count : filter.CategoryId > 0 ? 1 : 0)} categories | {filter.SubcategoryIds.Count} subcategories | {filter.AreaIds.Count} areas | {(string.IsNullOrWhiteSpace(filter.Query) ? "no query" : "query")}",
             "AllJobs" when source.AllJobsFilter is { } filter => $"{filter.Positions.Count} positions | {filter.Types.Count} employment types | {filter.MaxPages} pages",
             "JobSwipeCo" when source.JobSwipeCoFilter is { } filter => $"{filter.SearchUrls.Count} searches | {filter.MaxDetailsPerSearch} detail pages per search",
             "Glassdoor" when source.GlassdoorFilter is { } filter => $"{filter.SearchUrls.Count} searches | {filter.MaxPages} pages | optional",

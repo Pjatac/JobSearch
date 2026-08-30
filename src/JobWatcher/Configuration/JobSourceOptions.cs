@@ -40,7 +40,9 @@ public sealed class JobKarovFilterOptions
 public sealed class DrushimFilterOptions
 {
     public string BaseUrl { get; init; } = "https://www.drushim.co.il";
+    public string Query { get; init; } = string.Empty;
     public int CategoryId { get; init; } = 6;
+    public IReadOnlyList<int> CategoryIds { get; init; } = [];
     public int? SubcategoryId { get; init; }
     public IReadOnlyList<int> SubcategoryIds { get; init; } = [];
     public IReadOnlyList<int> AreaIds { get; init; } = [];
