@@ -96,7 +96,7 @@ public sealed partial class AllJobsHtmlParser
 
     private static string? ExtractDescription(HtmlNode card)
     {
-        return CleanText(card.SelectSingleNode(".//div[contains(concat(' ', normalize-space(@class), ' '), ' job-content-top-desc ')]")?.InnerText);
+        return CleanDescription(card.SelectSingleNode(".//div[contains(concat(' ', normalize-space(@class), ' '), ' job-content-top-desc ')]")?.InnerHtml);
     }
 
     private static IReadOnlyList<string> ExtractEmploymentTypes(HtmlNode card)
@@ -137,6 +137,29 @@ public sealed partial class AllJobsHtmlParser
         return WhitespaceRegex().Replace(WebUtility.HtmlDecode(value), " ").Trim();
     }
 
+    private static string? CleanDescription(string? html)
+    {
+        if (string.IsNullOrWhiteSpace(html))
+        {
+            return null;
+        }
+
+        var separated = ListItemStartRegex().Replace(WebUtility.HtmlDecode(html), "\n- ");
+        separated = BlockBoundaryRegex().Replace(separated, "\n");
+        var document = new HtmlDocument();
+        document.LoadHtml(separated);
+        var lines = document.DocumentNode.InnerText
+            .Replace("\r\n", "\n", StringComparison.Ordinal)
+            .Replace('\r', '\n')
+            .Split('\n')
+            .Select(CleanText)
+            .Where(line => !string.IsNullOrWhiteSpace(line))
+            .Cast<string>()
+            .ToList();
+
+        return lines.Count == 0 ? null : string.Join("\n", lines);
+    }
+
     [GeneratedRegex(@"JobID=(?<id>\d+)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex JobIdRegex();
 
@@ -145,4 +168,10 @@ public sealed partial class AllJobsHtmlParser
 
     [GeneratedRegex(@"\s+", RegexOptions.CultureInvariant)]
     private static partial Regex WhitespaceRegex();
+
+    [GeneratedRegex(@"<li\b[^>]*>", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex ListItemStartRegex();
+
+    [GeneratedRegex(@"<br\s*/?>|</(?:p|div|li|ul|ol|tr|td|th|h[1-6]|section|article)\s*>", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex BlockBoundaryRegex();
 }

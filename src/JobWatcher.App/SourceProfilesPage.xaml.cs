@@ -74,6 +74,14 @@ public partial class SourceProfilesPage : ContentPage
     [
         new(1, "Full-time"), new(2, "Part-time"), new(3, "Temporary"), new(4, "Shifts"), new(5, "Work from home"), new(6, "Hybrid")
     ];
+    private static readonly AllJobsPosition[] AllJobsPositions =
+    [
+        new(1759, "Backend Programmer", "Software"),
+        new(1994, "Backend Engineer", "Software"),
+        new(1152, ".NET", "Software"),
+        new(1203, "C#", "Software"),
+        new(1848, "Senior Backend Developer", "Software")
+    ];
 
     private readonly JobWatcherSettingsStore settingsStore;
     private readonly List<JobSourceOptions> sources = [];
@@ -122,8 +130,10 @@ public partial class SourceProfilesPage : ContentPage
     private Entry? drushimRangeEntry;
     private VerticalStackLayout? drushimAdvancedContent;
     private Entry? allJobsBaseUrlEntry;
-    private Entry? allJobsPositionEntry;
-    private Entry? allJobsPositionsEntry;
+    private readonly HashSet<int> allJobsSelectedPositions = [];
+    private HashSet<int>? allJobsPositionDialogSelection;
+    private readonly List<AllJobsPositionOption> allJobsPositionOptions = AllJobsPositions.Select(position => new AllJobsPositionOption(position)).ToList();
+    private Label? allJobsPositionsSummary;
     private Entry? allJobsTypesEntry;
     private Entry? allJobsSourceEntry;
     private Entry? allJobsDurationEntry;
@@ -484,18 +494,18 @@ public partial class SourceProfilesPage : ContentPage
                 GeoLexId = geoLexId,
                 IncludeAreaAround = drushimIncludeAreaAroundSwitch?.IsToggled ?? false,
                 Experience = experience,
-                Range = range
+                Range = range,
+                MaxDetailsPerSearch = source.DrushimFilter?.MaxDetailsPerSearch ?? 25
             }
         };
     }
 
     private JobSourceOptions BuildAllJobsPreview(JobSourceOptions source)
     {
-        _ = TryParseInt(allJobsPositionEntry?.Text, out var position);
-        _ = TryParseIntList(allJobsPositionsEntry?.Text, out var positions);
         _ = TryParseIntList(allJobsTypesEntry?.Text, out var types);
         _ = TryParseOptionalInt(allJobsSourceEntry?.Text, out var sourceId);
         _ = TryParseOptionalInt(allJobsDurationEntry?.Text, out var duration);
+        var positions = SelectedAllJobsPositions();
         return new JobSourceOptions
         {
             Name = source.Name,
@@ -504,7 +514,7 @@ public partial class SourceProfilesPage : ContentPage
             AllJobsFilter = new AllJobsFilterOptions
             {
                 BaseUrl = allJobsBaseUrlEntry?.Text?.Trim() ?? string.Empty,
-                Position = position,
+                Position = positions.FirstOrDefault(),
                 Positions = positions,
                 Types = types,
                 Source = sourceId,
@@ -594,16 +604,15 @@ public partial class SourceProfilesPage : ContentPage
                 GeoLexId = geoLexId,
                 IncludeAreaAround = drushimIncludeAreaAroundSwitch?.IsToggled ?? false,
                 Experience = experience,
-                Range = range
+                Range = range,
+                MaxDetailsPerSearch = previous.DrushimFilter?.MaxDetailsPerSearch ?? 25
             };
         }
 
         var allJobsFilter = previous.AllJobsFilter;
         if (string.Equals(previous.Adapter, "AllJobs", StringComparison.OrdinalIgnoreCase) && allJobsBaseUrlEntry is not null)
         {
-            if (!TryParseInt(allJobsPositionEntry?.Text, out var position) ||
-                !TryParseIntList(allJobsPositionsEntry?.Text, out var positions) ||
-                !TryParseIntList(allJobsTypesEntry?.Text, out var types) ||
+            if (!TryParseIntList(allJobsTypesEntry?.Text, out var types) ||
                 !TryParseOptionalInt(allJobsSourceEntry?.Text, out var sourceId) ||
                 !TryParseOptionalInt(allJobsDurationEntry?.Text, out var duration) ||
                 !TryParseInt(allJobsMaxPagesEntry?.Text, out var maxPages) || maxPages < 0)
@@ -612,10 +621,11 @@ public partial class SourceProfilesPage : ContentPage
                 return false;
             }
 
+            var positions = SelectedAllJobsPositions();
             allJobsFilter = new AllJobsFilterOptions
             {
                 BaseUrl = allJobsBaseUrlEntry.Text?.Trim() ?? string.Empty,
-                Position = position,
+                Position = positions.FirstOrDefault(),
                 Positions = positions,
                 Types = types,
                 Source = sourceId,
@@ -927,10 +937,16 @@ public partial class SourceProfilesPage : ContentPage
         Editor.Children.Add(new BoxView { HeightRequest = 1, Margin = new Thickness(0, 8), BackgroundColor = Colors.LightGray });
         Editor.Children.Add(new Label { Text = "AllJobs search", FontSize = 18, FontAttributes = FontAttributes.Bold });
         allJobsBaseUrlEntry = AddEntry("Base URL", filter.BaseUrl);
-        allJobsPositionEntry = AddEntry("Single position ID", filter.Position.ToString());
-        AddKnownValuesHint("1759 - Backend Programmer; 1994 - Backend Engineer; 1152 - .NET; 1203 - C#; 1848 - Senior Backend Developer.");
-        allJobsPositionsEntry = AddEntry("Position IDs", string.Join(", ", filter.Positions));
-        AddKnownValuesHint("1759 - Backend Programmer; 1994 - Backend Engineer; 1152 - .NET; 1203 - C#; 1848 - Senior Backend Developer.");
+        Editor.Children.Add(new Label { Text = "Positions", FontAttributes = FontAttributes.Bold });
+        allJobsSelectedPositions.Clear();
+        allJobsSelectedPositions.UnionWith(AllJobsUrlBuilder.GetPositionIds(filter));
+        EnsureAllJobsPositionOptions(allJobsSelectedPositions);
+        var choosePositionsButton = new Button { Text = "Choose positions" };
+        choosePositionsButton.Clicked += OnChooseAllJobsPositionsClicked;
+        Editor.Children.Add(choosePositionsButton);
+        allJobsPositionsSummary = new Label { TextColor = Colors.Gray, FontSize = 12 };
+        Editor.Children.Add(allJobsPositionsSummary);
+        UpdateAllJobsPositionsSummary();
         allJobsTypesEntry = AddEntry("Employment type IDs", string.Join(", ", filter.Types));
         AddKnownValuesHint("4 - Full-time.");
         allJobsSourceEntry = AddEntry("Source ID", filter.Source?.ToString() ?? string.Empty);
@@ -1584,6 +1600,90 @@ public partial class SourceProfilesPage : ContentPage
         }
     }
 
+    private IReadOnlyList<int> SelectedAllJobsPositions() => allJobsSelectedPositions.OrderBy(id => id).ToList();
+
+    private void EnsureAllJobsPositionOptions(IEnumerable<int> selectedIds)
+    {
+        foreach (var id in selectedIds)
+        {
+            if (allJobsPositionOptions.Any(option => option.Position.Id == id))
+            {
+                continue;
+            }
+
+            allJobsPositionOptions.Add(new AllJobsPositionOption(new AllJobsPosition(id, $"Position {id}", "Custom")));
+        }
+    }
+
+    private void OnChooseAllJobsPositionsClicked(object? sender, EventArgs e)
+    {
+        EnsureAllJobsPositionOptions(allJobsSelectedPositions);
+        allJobsPositionDialogSelection = new HashSet<int>(allJobsSelectedPositions);
+        foreach (var option in allJobsPositionOptions)
+        {
+            option.IsSelected = allJobsPositionDialogSelection.Contains(option.Position.Id);
+        }
+
+        AllJobsPositionSearch.Text = string.Empty;
+        RebuildAllJobsPositions();
+        AllJobsPositionsDialog.IsVisible = true;
+    }
+
+    private void OnAllJobsPositionSearchTextChanged(object? sender, TextChangedEventArgs e) => RebuildAllJobsPositions();
+
+    private void RebuildAllJobsPositions()
+    {
+        if (allJobsPositionDialogSelection is null)
+        {
+            return;
+        }
+
+        var term = AllJobsPositionSearch.Text?.Trim() ?? string.Empty;
+        AllJobsPositionsList.ItemsSource = allJobsPositionOptions
+            .Where(option => string.IsNullOrWhiteSpace(term) || option.SearchText.Contains(term, StringComparison.OrdinalIgnoreCase))
+            .GroupBy(option => option.Position.Group)
+            .Select(group => new AllJobsPositionGroup(group.Key, group.OrderBy(option => option.Position.Name)))
+            .ToList();
+    }
+
+    private void OnClearAllJobsPositionsClicked(object? sender, EventArgs e)
+    {
+        foreach (var option in allJobsPositionOptions)
+        {
+            option.IsSelected = false;
+        }
+
+        RebuildAllJobsPositions();
+    }
+
+    private void OnCancelAllJobsPositionsClicked(object? sender, EventArgs e)
+    {
+        allJobsPositionDialogSelection = null;
+        AllJobsPositionsDialog.IsVisible = false;
+    }
+
+    private void OnDoneAllJobsPositionsClicked(object? sender, EventArgs e)
+    {
+        if (allJobsPositionDialogSelection is not null)
+        {
+            allJobsSelectedPositions.Clear();
+            allJobsSelectedPositions.UnionWith(allJobsPositionOptions.Where(option => option.IsSelected).Select(option => option.Position.Id));
+            UpdateAllJobsPositionsSummary();
+            UpdateGeneratedUrlPreview();
+        }
+
+        allJobsPositionDialogSelection = null;
+        AllJobsPositionsDialog.IsVisible = false;
+    }
+
+    private void UpdateAllJobsPositionsSummary()
+    {
+        if (allJobsPositionsSummary is not null)
+        {
+            allJobsPositionsSummary.Text = allJobsSelectedPositions.Count == 0 ? "No positions selected" : $"{allJobsSelectedPositions.Count} positions selected";
+        }
+    }
+
     private static IReadOnlyList<string> SplitLines(string? value)
     {
         return string.IsNullOrWhiteSpace(value)
@@ -1708,6 +1808,18 @@ public partial class SourceProfilesPage : ContentPage
     private sealed class DrushimLocationGroup(string zone, IEnumerable<DrushimLocationOption> locations) : List<DrushimLocationOption>(locations)
     {
         public string Zone { get; } = zone;
+    }
+    private sealed record AllJobsPosition(int Id, string Name, string Group);
+    private sealed class AllJobsPositionOption(AllJobsPosition position)
+    {
+        public AllJobsPosition Position { get; } = position;
+        public string DisplayName => $"{Position.Name} ({Position.Id})";
+        public string SearchText => $"{Position.Name} {Position.Group} {Position.Id}";
+        public bool IsSelected { get; set; }
+    }
+    private sealed class AllJobsPositionGroup(string group, IEnumerable<AllJobsPositionOption> positions) : List<AllJobsPositionOption>(positions)
+    {
+        public string Group { get; } = group;
     }
     private sealed record ProfileListItem(string Name, string Adapter);
 }

@@ -65,7 +65,10 @@ https://www.jobkarov.com/Search/?query=C%23+.Net&area=53&size=2
 
 ### Drushim
 
-Drushim structured filters use the site's JSON API pagination behind the "show more" button. Explicit Drushim URLs still fall back to server-rendered HTML parsing for diagnostics. Browser automation is not required. Drushim category/subcategory/area IDs are not interchangeable with JobKarov IDs.
+Drushim structured filters use the same public search URLs shown in the profile preview. The parser
+prefers the embedded Next.js search payload because it contains the full listing context returned
+with the page, and falls back to rendered job cards when that payload is absent. Browser automation
+is not required. Drushim category/subcategory/area IDs are not interchangeable with JobKarov IDs.
 
 - software category: `cat6`
 - Backend: `subcat/616`
@@ -77,11 +80,13 @@ Drushim structured filters use the site's JSON API pagination behind the "show m
 - Center + Hasharon area IDs: `1-2-3-4-5-6-7-8-9-10-11-12-13-14`
 - full-time scope: `scope=1`
 - experience focus: `experience=2-3-4` and `ssaen=3` (middle/mid+/senior-compatible, but not senior-only)
+- detail pages per search page: `25`; details are used to enrich listings with the full
+  requirements text when the search card only contains a teaser
 - active combined role URL: `https://www.drushim.co.il/jobs/subcat/69-183-372-380-616/area/1-2-3-4-5-6-7-8-9-10-11-12-13-14/?catdir=6&scope=1&experience=2-3-4&geolexid=539071&isaa=true&ssaen=3&range=3`
 
 ### AllJobs
 
-AllJobs uses normal page-number pagination in `SearchResultsGuest.aspx?page=N`. A cookie-aware HTTP client is used because direct page 2 requests can hit a Radware interstitial without the first-page session.
+AllJobs uses normal page-number pagination in `SearchResultsGuest.aspx?page=N`. A cookie-aware HTTP client is used because direct page 2 requests can hit a Radware interstitial without the first-page session. The site is treated as a one-position-at-a-time search: profiles may contain multiple `Positions`, but the source fetches each position separately and deduplicates the merged result set.
 
 - Backend Programmer: `position=1759`
 - Backend Engineer: `position=1994`
@@ -96,7 +101,7 @@ AllJobs uses normal page-number pagination in `SearchResultsGuest.aspx?page=N`. 
 Configured AllJobs URL shape:
 
 ```text
-https://www.alljobs.co.il/SearchResultsGuest.aspx?page=<page>&position=1759,1994,1152,1203,1848&type=4&source=&duration=25&exc=&region=2,6
+https://www.alljobs.co.il/SearchResultsGuest.aspx?page=<page>&position=<one-position-id>&type=4&source=&duration=25&exc=&region=2,6
 ```
 
 ### JobSwipe.co

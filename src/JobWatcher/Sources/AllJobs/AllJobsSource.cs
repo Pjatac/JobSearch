@@ -27,63 +27,75 @@ public sealed class AllJobsSource(
             client.Timeout = TimeSpan.FromSeconds(Math.Max(1, watcherOptions.Value.RequestTimeoutSeconds));
 
             var vacancies = new Dictionary<string, JobVacancy>(StringComparer.OrdinalIgnoreCase);
-            int? totalPages = null;
-            int? totalJobs = null;
             var maxPages = Math.Max(1, options.AllJobsFilter?.MaxPages ?? 25);
+            var filter = options.AllJobsFilter ?? new AllJobsFilterOptions();
+            var positionIds = AllJobsUrlBuilder.GetPositionIds(filter);
+            List<int?> positionSearches = positionIds.Count > 0 ? positionIds.Select<int, int?>(positionId => positionId).ToList() : [null];
+            int? totalJobs = null;
 
-            for (var page = 1; page <= Math.Min(totalPages ?? maxPages, maxPages); page++)
+            foreach (var positionId in positionSearches)
             {
-                var url = AllJobsUrlBuilder.Build(options, page);
-                logger.LogInformation("Fetching source {Source} page {Page} from {Url}", options.Name, page, url);
-                using var response = await HttpRequestRetryPolicy.GetAsync(client, url, logger, options.Name, cancellationToken);
-                var responseBytes = await response.Content.ReadAsByteArrayAsync(cancellationToken);
-                var html = Encoding.UTF8.GetString(responseBytes);
-                logger.LogInformation(
-                    "Source {Source} page {Page} HTTP {StatusCode}, response size {ResponseSize}",
-                    options.Name,
-                    page,
-                    (int)response.StatusCode,
-                    responseBytes.Length);
+                int? totalPages = null;
+                int? positionTotalJobs = null;
 
-                if (!response.IsSuccessStatusCode)
+                for (var page = 1; page <= Math.Min(totalPages ?? maxPages, maxPages); page++)
                 {
-                    await SaveDiagnosticHtmlAsync(html, options.Name, collectedAtUtc, cancellationToken);
-                    return Failed(options.Name, warnings, $"HTTP {(int)response.StatusCode} {response.ReasonPhrase}");
-                }
+                    var url = AllJobsUrlBuilder.Build(options, page, positionId);
+                    logger.LogInformation("Fetching source {Source}, position {PositionId}, page {Page} from {Url}", options.Name, positionId, page, url);
+                    using var response = await HttpRequestRetryPolicy.GetAsync(client, url, logger, options.Name, cancellationToken);
+                    var responseBytes = await response.Content.ReadAsByteArrayAsync(cancellationToken);
+                    var html = Encoding.UTF8.GetString(responseBytes);
+                    logger.LogInformation(
+                        "Source {Source}, position {PositionId}, page {Page} HTTP {StatusCode}, response size {ResponseSize}",
+                        options.Name,
+                        positionId,
+                        page,
+                        (int)response.StatusCode,
+                        responseBytes.Length);
 
-                var parseResult = parser.Parse(html, options.Name, collectedAtUtc);
-                warnings.AddRange(parseResult.Warnings);
-                totalPages ??= parseResult.TotalPages;
-                totalJobs ??= parseResult.TotalJobs;
-
-                logger.LogInformation(
-                    "Source {Source} page {Page}: job cards {JobCards}, page vacancies {PageVacancies}, total pages {TotalPages}, deduplicated vacancies {VacancyCount}",
-                    options.Name,
-                    page,
-                    parseResult.JobCardCount,
-                    parseResult.Vacancies.Count,
-                    totalPages,
-                    vacancies.Count + parseResult.Vacancies.Count);
-
-                if (parseResult.Vacancies.Count == 0)
-                {
-                    if (html.Contains("Radware", StringComparison.OrdinalIgnoreCase))
+                    if (!response.IsSuccessStatusCode)
                     {
-                        warnings.Add($"AllJobs page {page} looked like a Radware interstitial.");
+                        await SaveDiagnosticHtmlAsync(html, options.Name, collectedAtUtc, cancellationToken);
+                        return Failed(options.Name, warnings, $"HTTP {(int)response.StatusCode} {response.ReasonPhrase}");
                     }
 
-                    break;
+                    var parseResult = parser.Parse(html, options.Name, collectedAtUtc);
+                    warnings.AddRange(parseResult.Warnings);
+                    totalPages ??= parseResult.TotalPages;
+                    positionTotalJobs ??= parseResult.TotalJobs;
+
+                    logger.LogInformation(
+                        "Source {Source}, position {PositionId}, page {Page}: job cards {JobCards}, page vacancies {PageVacancies}, total pages {TotalPages}, deduplicated vacancies {VacancyCount}",
+                        options.Name,
+                        positionId,
+                        page,
+                        parseResult.JobCardCount,
+                        parseResult.Vacancies.Count,
+                        totalPages,
+                        vacancies.Count + parseResult.Vacancies.Count);
+
+                    if (parseResult.Vacancies.Count == 0)
+                    {
+                        if (html.Contains("Radware", StringComparison.OrdinalIgnoreCase))
+                        {
+                            warnings.Add($"AllJobs position {positionId?.ToString() ?? "all"} page {page} looked like a Radware interstitial.");
+                        }
+
+                        break;
+                    }
+
+                    foreach (var vacancy in parseResult.Vacancies)
+                    {
+                        vacancies.TryAdd(vacancy.ExternalId, vacancy);
+                    }
                 }
 
-                foreach (var vacancy in parseResult.Vacancies)
+                if (totalPages is not null && totalPages > maxPages)
                 {
-                    vacancies.TryAdd(vacancy.ExternalId, vacancy);
+                    warnings.Add($"AllJobs position {positionId?.ToString() ?? "all"} total pages {totalPages} exceeds configured maxPages {maxPages}.");
                 }
-            }
 
-            if (totalPages is not null && totalPages > maxPages)
-            {
-                warnings.Add($"AllJobs total pages {totalPages} exceeds configured maxPages {maxPages}.");
+                totalJobs = (totalJobs ?? 0) + (positionTotalJobs ?? 0);
             }
 
             var orderedVacancies = vacancies.Values.OrderBy(v => v.ExternalId, StringComparer.OrdinalIgnoreCase).ToList();

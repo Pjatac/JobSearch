@@ -28,8 +28,12 @@ Work from saved diagnostics first; if a live request is needed, follow the one-r
 - Manual run logs under `data/diagnostics/manual-runs/` are pruned whenever a new run log is
   created. Logs older than 24 hours are deleted; cleanup failures are ignored.
 - Drushim structured profiles support `Query` and `CategoryIds`. When multiple categories are
-  selected, the API source fetches each category separately and deduplicates vacancies by external
-  ID.
+  selected, the source fetches each public search URL separately and deduplicates vacancies by
+  external ID. The parser should prefer embedded `__NEXT_DATA__` jobs over rendered cards because
+  the embedded payload carries fuller listing context. Do not route Drushim collection through
+  `/api/jobs/search`; the live site returned a Next.js `/404` page for that endpoint.
+- AllJobs structured profiles support multiple `Positions`, but the source sends one `position`
+  value per request and deduplicates the merged result set.
 
 ## Secret Tel Aviv Status
 
@@ -55,8 +59,8 @@ the saved diagnostics and test fixtures.
 
 - The `Latest Source Status` UI now puts source/state on the first row and the full message below
   with wrapping. It still needs user validation on a real multi-source run.
-- JobKarov and Drushim now have named profile controls for their main category/role/location
-  selectors. AllJobs still uses friendly ID-to-name hints.
+- JobKarov, Drushim, and AllJobs now have named profile controls for their main category/role/
+  location or position selectors.
 - JobSwipe.co and Glassdoor remain URL-profile based. Secret Tel Aviv is also search-URL based,
   with a detail-page limit.
 - A configuration change does not clear snapshots automatically. The UI warns about comparison

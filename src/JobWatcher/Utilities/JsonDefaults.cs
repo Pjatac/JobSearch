@@ -8,7 +8,8 @@ public static class JsonDefaults
     public static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web)
     {
         WriteIndented = true,
-        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+        Converters = { new LenientStringListJsonConverter() }
     };
 
     public static ValueTask<T?> DeserializeAsync<T>(Stream stream, CancellationToken cancellationToken)

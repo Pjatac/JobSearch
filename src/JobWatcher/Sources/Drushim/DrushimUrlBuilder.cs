@@ -5,7 +5,7 @@ namespace JobWatcher.Sources.Drushim;
 
 public static class DrushimUrlBuilder
 {
-    public static string Build(JobSourceOptions options)
+    public static string Build(JobSourceOptions options, int? categoryIdOverride = null)
     {
         if (!string.IsNullOrWhiteSpace(options.Url))
         {
@@ -23,7 +23,7 @@ public static class DrushimUrlBuilder
         var subcategories = filter.SubcategoryIds.Count > 0
             ? filter.SubcategoryIds
             : filter.SubcategoryId is { } subcategoryId ? [subcategoryId] : [];
-        var categoryId = categories[0];
+        var categoryId = categoryIdOverride ?? categories[0];
         var hasQuery = !string.IsNullOrWhiteSpace(filter.Query);
 
         var path = subcategories.Count > 0 && !hasQuery

@@ -52,6 +52,7 @@ public sealed class DrushimFilterOptions
     public string? ExperienceRange { get; init; }
     public IReadOnlyList<int> Scopes { get; init; } = [];
     public int? Range { get; init; } = 3;
+    public int MaxDetailsPerSearch { get; init; } = 25;
 }
 
 public sealed class AllJobsFilterOptions

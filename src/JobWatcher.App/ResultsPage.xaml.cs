@@ -48,7 +48,7 @@ public partial class ResultsPage : ContentPage
             return;
         }
 
-        DetailsTitleLabel.Text = item.Title;
+        DetailsTitleLabel.Text = $"{item.ListNumber} {item.Title}";
         DetailsMetadataLabel.Text = item.DetailsMetadata;
         DetailsDescriptionLabel.Text = item.Description;
         DetailsOpenButton.CommandParameter = item.Url;
@@ -114,7 +114,7 @@ public partial class ResultsPage : ContentPage
         var source = SourcePicker.SelectedItem as string ?? "All";
         var location = LocationEntry.Text?.Trim() ?? string.Empty;
         var search = SearchBar.Text?.Trim() ?? string.Empty;
-        var jobs = output.Sources.SelectMany(source => source.NewJobs)
+        var jobs = (output.Sources ?? []).SelectMany(source => source.NewJobs ?? [])
             .Where(job => selected == "All" || string.Equals(job.Classification?.Classification, selected.ToLowerInvariant(), StringComparison.OrdinalIgnoreCase))
             .Where(job => source == "All" || string.Equals(job.Source, source, StringComparison.OrdinalIgnoreCase))
             .Where(job => string.IsNullOrWhiteSpace(location) || job.Location?.Contains(location, StringComparison.OrdinalIgnoreCase) == true)
@@ -128,7 +128,7 @@ public partial class ResultsPage : ContentPage
             "Company" => jobs.OrderBy(job => job.Company, StringComparer.OrdinalIgnoreCase).ToList(),
             _ => jobs.OrderByDescending(job => job.DatePosted).ThenBy(job => job.Title, StringComparer.OrdinalIgnoreCase).ToList()
         };
-        var items = jobs.Select(job => new ResultItem(job)).ToList();
+        var items = jobs.Select((job, index) => new ResultItem(job, index + 1)).ToList();
         Jobs.ItemsSource = items;
         SummaryLabel.Text = $"{items.Count} shown · {output.TotalNewJobs} new";
         Jobs.IsVisible = items.Count > 0;
@@ -138,8 +138,9 @@ public partial class ResultsPage : ContentPage
 
     private sealed record ResultItem
     {
-        public ResultItem(JobVacancy job)
+        public ResultItem(JobVacancy job, int index)
         {
+            Index = index;
             Title = job.Title;
             Company = string.IsNullOrWhiteSpace(job.Company) ? "Company not provided" : job.Company;
             Classification = job.Classification?.Classification ?? "review";
@@ -161,6 +162,8 @@ public partial class ResultsPage : ContentPage
             }.Where(value => !string.IsNullOrWhiteSpace(value)));
         }
 
+        public int Index { get; }
+        public string ListNumber => $"#{Index}";
         public string Title { get; }
         public string Company { get; }
         public string Classification { get; }

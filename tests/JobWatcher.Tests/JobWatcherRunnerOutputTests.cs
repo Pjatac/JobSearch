@@ -87,6 +87,39 @@ public sealed class JobWatcherRunnerOutputTests
     }
 
     [Fact]
+    public async Task DeduplicatesNewJobsByTitleAndDescriptionWhenCompanyIsMissing()
+    {
+        using var temp = new TempDirectory();
+        var options = Options.Create(new JobWatcherOptions
+        {
+            DataDirectory = temp.Path,
+            Sources =
+            [
+                new JobSourceOptions { Name = "AllJobs-BackendDotNet", Adapter = "AllJobs", Url = "https://example.test/alljobs" }
+            ]
+        });
+
+        var description = "Build and scale a backend data classification platform with ownership across cloud and endpoint systems.";
+        var runner = CreateRunner(
+            options,
+            [
+                new StaticListSource("AllJobs",
+                [
+                    Vacancy("8771633", "Principal/ Senior Backend Engineer - Data Classification", null, "https://www.alljobs.co.il/Search/UploadSingle.aspx?JobID=8771633") with { Description = description },
+                    Vacancy("8781536", "Principal/ Senior Backend Engineer - Data Classification", null, "https://www.alljobs.co.il/Search/UploadSingle.aspx?JobID=8781536") with { Description = description }
+                ])
+            ]);
+
+        var exitCode = await runner.RunAsync(CancellationToken.None);
+
+        var output = await LoadOutputAsync(temp.Path);
+        Assert.Equal(0, exitCode);
+        Assert.Equal(1, output!.TotalNewJobs);
+        Assert.Equal(1, output.Sources[0].NewCount);
+        Assert.Equal("8771633", Assert.Single(output.Sources[0].NewJobs).ExternalId);
+    }
+
+    [Fact]
     public async Task PersistsRawSnapshotWithoutPresentationClassification()
     {
         using var temp = new TempDirectory();
@@ -367,6 +400,26 @@ public sealed class JobWatcherRunnerOutputTests
                     Source = options.Name,
                     CollectedAtUtc = collectedAtUtc,
                     Vacancies = [vacancy with { Source = Name, CollectedAtUtc = collectedAtUtc }]
+                }
+            });
+        }
+    }
+
+    private sealed class StaticListSource(string name, IReadOnlyList<JobVacancy> vacancies) : IJobSource
+    {
+        public string Name { get; } = name;
+
+        public Task<SourceRunResult> FetchAsync(JobSourceOptions options, DateTimeOffset collectedAtUtc, CancellationToken cancellationToken)
+        {
+            return Task.FromResult(new SourceRunResult
+            {
+                Source = options.Name,
+                Success = true,
+                Snapshot = new SourceSnapshot
+                {
+                    Source = options.Name,
+                    CollectedAtUtc = collectedAtUtc,
+                    Vacancies = vacancies.Select(vacancy => vacancy with { Source = Name, CollectedAtUtc = collectedAtUtc }).ToList()
                 }
             });
         }

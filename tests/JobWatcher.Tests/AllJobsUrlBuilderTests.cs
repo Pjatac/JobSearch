@@ -42,7 +42,7 @@ public sealed class AllJobsUrlBuilderTests
     }
 
     [Fact]
-    public void BuildsUrlFromMultiPositionFilter()
+    public void BuildsUrlFromMultiPositionFilterUsingFirstPositionForPreview()
     {
         var options = new JobSourceOptions
         {
@@ -59,6 +59,35 @@ public sealed class AllJobsUrlBuilderTests
 
         var url = AllJobsUrlBuilder.Build(options, page: 1);
 
-        Assert.Equal("https://www.alljobs.co.il/SearchResultsGuest.aspx?page=1&position=1759%2c1994%2c1152%2c1203%2c1848&type=4&source=&duration=25&exc=&region=2%2c6", url);
+        Assert.Equal("https://www.alljobs.co.il/SearchResultsGuest.aspx?page=1&position=1759&type=4&source=&duration=25&exc=&region=2%2c6", url);
+    }
+
+    [Fact]
+    public void BuildsUrlWithPositionOverride()
+    {
+        var options = new JobSourceOptions
+        {
+            Name = "AllJobs",
+            AllJobsFilter = new AllJobsFilterOptions
+            {
+                Positions = [1759, 1994, 1152, 1203, 1848],
+                Types = [4],
+                Duration = 25,
+                Exclude = "",
+                Region = "2,6"
+            }
+        };
+
+        var url = AllJobsUrlBuilder.Build(options, page: 2, positionOverride: 1203);
+
+        Assert.Equal("https://www.alljobs.co.il/SearchResultsGuest.aspx?page=2&position=1203&type=4&source=&duration=25&exc=&region=2%2c6", url);
+    }
+
+    [Fact]
+    public void GetsEffectivePositionIdsFromLegacyAndListFilters()
+    {
+        Assert.Equal([1021], AllJobsUrlBuilder.GetPositionIds(new AllJobsFilterOptions { Position = 1021 }));
+        Assert.Equal([1759, 1994], AllJobsUrlBuilder.GetPositionIds(new AllJobsFilterOptions { Position = 1021, Positions = [1759, 1994] }));
+        Assert.Empty(AllJobsUrlBuilder.GetPositionIds(new AllJobsFilterOptions()));
     }
 }

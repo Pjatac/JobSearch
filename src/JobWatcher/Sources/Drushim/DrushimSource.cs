@@ -11,7 +11,6 @@ namespace JobWatcher.Sources.Drushim;
 public sealed class DrushimSource(
     IHttpClientFactory httpClientFactory,
     DrushimHtmlParser parser,
-    DrushimApiParser apiParser,
     IOptions<JobWatcherOptions> watcherOptions,
     ILogger<DrushimSource> logger) : IJobSource
 {
@@ -24,39 +23,89 @@ public sealed class DrushimSource(
 
         try
         {
-            if (string.IsNullOrWhiteSpace(options.Url) && options.DrushimFilter is not null)
-            {
-                return await FetchApiAsync(options, collectedAtUtc, warnings, cancellationToken);
-            }
-
-            var url = DrushimUrlBuilder.Build(options);
-            logger.LogInformation("Fetching source {Source} from {Url}", options.Name, url);
             using var client = httpClientFactory.CreateClient(HttpClientName);
             client.Timeout = TimeSpan.FromSeconds(Math.Max(1, watcherOptions.Value.RequestTimeoutSeconds));
 
-            using var response = await HttpRequestRetryPolicy.GetAsync(client, url, logger, options.Name, cancellationToken);
-            var responseBytes = await response.Content.ReadAsByteArrayAsync(cancellationToken);
-            var html = Encoding.UTF8.GetString(responseBytes);
-            logger.LogInformation("Source {Source} HTTP {StatusCode}, response size {ResponseSize}", options.Name, (int)response.StatusCode, responseBytes.Length);
-
-            if (!response.IsSuccessStatusCode)
+            var vacancies = new Dictionary<string, JobVacancy>(StringComparer.OrdinalIgnoreCase);
+            string? lastHtml = null;
+            foreach (var request in BuildRequests(options))
             {
-                await SaveDiagnosticHtmlAsync(html, options.Name, collectedAtUtc, cancellationToken);
-                return Failed(options.Name, warnings, $"HTTP {(int)response.StatusCode} {response.ReasonPhrase}");
+                if (request.CategoryId is null)
+                {
+                    logger.LogInformation("Fetching source {Source} from {Url}", options.Name, request.Url);
+                }
+                else
+                {
+                    logger.LogInformation("Fetching source {Source}, category {CategoryId} from {Url}", options.Name, request.CategoryId, request.Url);
+                }
+
+                using var response = await HttpRequestRetryPolicy.GetAsync(client, request.Url, logger, options.Name, cancellationToken);
+                var responseBytes = await response.Content.ReadAsByteArrayAsync(cancellationToken);
+                var html = Encoding.UTF8.GetString(responseBytes);
+                lastHtml = html;
+                logger.LogInformation(
+                    "Source {Source}{CategorySuffix} HTTP {StatusCode}, response size {ResponseSize}",
+                    options.Name,
+                    request.CategoryId is null ? string.Empty : $", category {request.CategoryId}",
+                    (int)response.StatusCode,
+                    responseBytes.Length);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    await SaveDiagnosticHtmlAsync(html, options.Name, collectedAtUtc, cancellationToken);
+                    return Failed(options.Name, warnings, $"HTTP {(int)response.StatusCode} {response.ReasonPhrase}");
+                }
+
+                var parseResult = parser.Parse(html, options.Name, collectedAtUtc);
+                warnings.AddRange(parseResult.Warnings);
+                foreach (var vacancy in parseResult.Vacancies)
+                {
+                    vacancies.TryAdd(vacancy.ExternalId, vacancy);
+                }
+
+                logger.LogInformation(
+                    "Source {Source}{CategorySuffix}: job cards {JobCards}, page vacancies {PageVacancies}, deduplicated vacancies {VacancyCount}",
+                    options.Name,
+                    request.CategoryId is null ? string.Empty : $", category {request.CategoryId}",
+                    parseResult.JobCardCount,
+                    parseResult.Vacancies.Count,
+                    vacancies.Count);
             }
 
-            var parseResult = parser.Parse(html, options.Name, collectedAtUtc);
-            warnings.AddRange(parseResult.Warnings);
-            logger.LogInformation(
-                "Source {Source}: job cards {JobCards}, deduplicated vacancies {VacancyCount}",
-                options.Name,
-                parseResult.JobCardCount,
-                parseResult.Vacancies.Count);
-
-            if (parseResult.Vacancies.Count == 0 || parseResult.Vacancies.Count < options.MinimumExpectedVacancies)
+            var maximumDetails = Math.Max(0, options.DrushimFilter?.MaxDetailsPerSearch ?? 0);
+            var listedVacancies = vacancies.Values.OrderBy(v => v.ExternalId, StringComparer.OrdinalIgnoreCase).ToList();
+            foreach (var listedVacancy in listedVacancies.Take(maximumDetails))
             {
-                await SaveDiagnosticHtmlAsync(html, options.Name, collectedAtUtc, cancellationToken);
-                return Failed(options.Name, warnings, $"Parsed {parseResult.Vacancies.Count} vacancies, below minimum {options.MinimumExpectedVacancies}.");
+                var detail = await LoadDetailsAsync(client, listedVacancy, options.Name, collectedAtUtc, warnings, cancellationToken);
+                if (detail is not null)
+                {
+                    vacancies[listedVacancy.ExternalId] = listedVacancy with
+                    {
+                        Title = detail.Title,
+                        Company = detail.Company ?? listedVacancy.Company,
+                        Location = detail.Location ?? listedVacancy.Location,
+                        Description = PreferLonger(detail.Description, listedVacancy.Description),
+                        DatePosted = detail.DatePosted ?? listedVacancy.DatePosted,
+                        EmploymentTypes = detail.EmploymentTypes.Count > 0 ? detail.EmploymentTypes : listedVacancy.EmploymentTypes
+                    };
+                }
+            }
+
+            var orderedVacancies = vacancies.Values.OrderBy(v => v.ExternalId, StringComparer.OrdinalIgnoreCase).ToList();
+            logger.LogInformation(
+                "Source {Source}: parsed {VacancyCount} vacancies and loaded {DetailCount} details",
+                options.Name,
+                orderedVacancies.Count,
+                Math.Min(listedVacancies.Count, maximumDetails));
+
+            if (orderedVacancies.Count == 0 || orderedVacancies.Count < options.MinimumExpectedVacancies)
+            {
+                if (lastHtml is not null)
+                {
+                    await SaveDiagnosticHtmlAsync(lastHtml, options.Name, collectedAtUtc, cancellationToken);
+                }
+
+                return Failed(options.Name, warnings, $"Parsed {orderedVacancies.Count} vacancies, below minimum {options.MinimumExpectedVacancies}.");
             }
 
             return new SourceRunResult
@@ -67,7 +116,7 @@ public sealed class DrushimSource(
                 {
                     Source = options.Name,
                     CollectedAtUtc = collectedAtUtc,
-                    Vacancies = parseResult.Vacancies
+                    Vacancies = orderedVacancies
                 },
                 Warnings = warnings
             };
@@ -78,101 +127,32 @@ public sealed class DrushimSource(
         }
     }
 
-    private async Task<SourceRunResult> FetchApiAsync(
-        JobSourceOptions options,
+    private async Task<JobVacancy?> LoadDetailsAsync(
+        HttpClient client,
+        JobVacancy listedVacancy,
+        string sourceName,
         DateTimeOffset collectedAtUtc,
         List<string> warnings,
         CancellationToken cancellationToken)
     {
-        using var client = httpClientFactory.CreateClient(HttpClientName);
-        client.Timeout = TimeSpan.FromSeconds(Math.Max(1, watcherOptions.Value.RequestTimeoutSeconds));
-
-        var allVacancies = new Dictionary<string, JobVacancy>(StringComparer.OrdinalIgnoreCase);
-        int? totalSearchResultCount = null;
-        var filter = options.DrushimFilter ?? throw new InvalidOperationException($"Source '{options.Name}' must define drushimFilter for API search.");
-        var categories = DrushimUrlBuilder.GetCategoryIds(filter);
-
-        foreach (var categoryId in categories)
+        try
         {
-            var page = 1;
-            var totalPages = 1;
-            int? categoryTotalSearchResultCount = null;
-            while (page <= totalPages)
+            logger.LogInformation("Fetching Drushim detail for source {Source} from {Url}", sourceName, listedVacancy.Url);
+            using var response = await HttpRequestRetryPolicy.GetAsync(client, listedVacancy.Url, logger, sourceName, cancellationToken);
+            var html = await response.Content.ReadAsStringAsync(cancellationToken);
+            if (!response.IsSuccessStatusCode)
             {
-                var url = DrushimUrlBuilder.BuildApiSearch(options, page, categoryId);
-                logger.LogInformation("Fetching source {Source}, category {CategoryId}, page {Page} from {Url}", options.Name, categoryId, page, url);
-
-                using var response = await HttpRequestRetryPolicy.GetAsync(client, url, logger, options.Name, cancellationToken);
-                var responseBytes = await response.Content.ReadAsByteArrayAsync(cancellationToken);
-                var json = Encoding.UTF8.GetString(responseBytes);
-                logger.LogInformation(
-                    "Source {Source}, category {CategoryId}, page {Page} HTTP {StatusCode}, response size {ResponseSize}",
-                    options.Name,
-                    categoryId,
-                    page,
-                    (int)response.StatusCode,
-                    responseBytes.Length);
-
-                if (!response.IsSuccessStatusCode)
-                {
-                    await SaveDiagnosticTextAsync(json, options.Name, collectedAtUtc, "json", cancellationToken);
-                    return Failed(options.Name, warnings, $"HTTP {(int)response.StatusCode} {response.ReasonPhrase}");
-                }
-
-                var parseResult = apiParser.Parse(json, options.Name, collectedAtUtc);
-                warnings.AddRange(parseResult.Warnings);
-                totalPages = Math.Max(1, parseResult.TotalPages);
-                categoryTotalSearchResultCount ??= parseResult.TotalSearchResultCount;
-
-                foreach (var vacancy in parseResult.Vacancies)
-                {
-                    allVacancies.TryAdd(vacancy.ExternalId, vacancy);
-                }
-
-                logger.LogInformation(
-                    "Source {Source}, category {CategoryId}, page {Page}: API items {ApiItems}, page vacancies {PageVacancies}, total pages {TotalPages}, deduplicated vacancies {VacancyCount}",
-                    options.Name,
-                    categoryId,
-                    page,
-                    parseResult.ResultItemCount,
-                    parseResult.Vacancies.Count,
-                    totalPages,
-                    allVacancies.Count);
-
-                if (parseResult.ResultItemCount == 0 || parseResult.NextPage is null || parseResult.NextPage <= page)
-                {
-                    break;
-                }
-
-                page = parseResult.NextPage.Value;
+                warnings.Add($"Skipped Drushim detail {listedVacancy.Url}: HTTP {(int)response.StatusCode} {response.ReasonPhrase}.");
+                return null;
             }
 
-            totalSearchResultCount = (totalSearchResultCount ?? 0) + (categoryTotalSearchResultCount ?? 0);
+            return parser.ParseDetail(html, sourceName, listedVacancy.Url, collectedAtUtc);
         }
-
-        if (totalSearchResultCount is > 0 && allVacancies.Count < totalSearchResultCount)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            warnings.Add($"Drushim API returned {allVacancies.Count} unique vacancies, below advertised total {totalSearchResultCount}.");
+            warnings.Add($"Skipped Drushim detail {listedVacancy.Url}: {ex.Message}");
+            return null;
         }
-
-        var orderedVacancies = allVacancies.Values.OrderBy(v => v.ExternalId, StringComparer.OrdinalIgnoreCase).ToList();
-        if (orderedVacancies.Count == 0 || orderedVacancies.Count < options.MinimumExpectedVacancies)
-        {
-            return Failed(options.Name, warnings, $"Parsed {orderedVacancies.Count} vacancies, below minimum {options.MinimumExpectedVacancies}.");
-        }
-
-        return new SourceRunResult
-        {
-            Source = options.Name,
-            Success = true,
-            Snapshot = new SourceSnapshot
-            {
-                Source = options.Name,
-                CollectedAtUtc = collectedAtUtc,
-                Vacancies = orderedVacancies
-            },
-            Warnings = warnings
-        };
     }
 
     private async Task SaveDiagnosticHtmlAsync(string html, string sourceName, DateTimeOffset collectedAtUtc, CancellationToken cancellationToken)
@@ -181,10 +161,16 @@ public sealed class DrushimSource(
         logger.LogWarning("Wrote diagnostic HTML for source {Source} to {Path}", sourceName, path);
     }
 
-    private async Task SaveDiagnosticTextAsync(string content, string sourceName, DateTimeOffset collectedAtUtc, string extension, CancellationToken cancellationToken)
+    private static IReadOnlyList<DrushimRequest> BuildRequests(JobSourceOptions options)
     {
-        var path = await DiagnosticFileWriter.WriteLatestAsync(watcherOptions.Value.DataDirectory, sourceName, collectedAtUtc, extension, content, cancellationToken);
-        logger.LogWarning("Wrote diagnostic response for source {Source} to {Path}", sourceName, path);
+        if (!string.IsNullOrWhiteSpace(options.Url) || options.DrushimFilter is null)
+        {
+            return [new DrushimRequest(null, DrushimUrlBuilder.Build(options))];
+        }
+
+        return DrushimUrlBuilder.GetCategoryIds(options.DrushimFilter)
+            .Select(categoryId => new DrushimRequest(categoryId, DrushimUrlBuilder.Build(options, categoryId)))
+            .ToList();
     }
 
     private static SourceRunResult Failed(string sourceName, IReadOnlyList<string> warnings, string error)
@@ -197,4 +183,21 @@ public sealed class DrushimSource(
             Warnings = warnings
         };
     }
+
+    private static string? PreferLonger(string? detailDescription, string? listedDescription)
+    {
+        if (string.IsNullOrWhiteSpace(detailDescription))
+        {
+            return listedDescription;
+        }
+
+        if (string.IsNullOrWhiteSpace(listedDescription))
+        {
+            return detailDescription;
+        }
+
+        return detailDescription.Length >= listedDescription.Length ? detailDescription : listedDescription;
+    }
+
+    private sealed record DrushimRequest(int? CategoryId, string Url);
 }

@@ -61,6 +61,28 @@ public sealed class DrushimUrlBuilderTests
     }
 
     [Fact]
+    public void BuildsCategoryUrlWithCategoryOverride()
+    {
+        var options = new JobSourceOptions
+        {
+            Name = "Drushim-Software",
+            DrushimFilter = new DrushimFilterOptions
+            {
+                Query = "backend",
+                CategoryId = 6,
+                CategoryIds = [5, 6],
+                Experience = 3,
+                IncludeAreaAround = false,
+                Range = null
+            }
+        };
+
+        var url = DrushimUrlBuilder.Build(options, categoryIdOverride: 5);
+
+        Assert.Equal("https://www.drushim.co.il/jobs/cat5/?searchterm=backend&ssaen=3", url);
+    }
+
+    [Fact]
     public void SearchTermUsesCategoryUrlEvenWhenSubcategoriesAreSelected()
     {
         var options = new JobSourceOptions

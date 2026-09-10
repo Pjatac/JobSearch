@@ -41,8 +41,37 @@ public sealed class AllJobsHtmlParserTests
         Assert.Equal("ריקרוטיקס בע\"מ", vacancy.Company);
         Assert.Equal("תל אביב יפו", vacancy.Location);
         Assert.Equal("https://www.alljobs.co.il/Search/UploadSingle.aspx?JobID=8769958", vacancy.Url);
-        Assert.Equal("תיאור משרה", vacancy.Description);
+        Assert.Equal("תיאור\nמשרה", vacancy.Description);
         Assert.Equal(["משרה מלאה", "עבודה היברידית"], vacancy.EmploymentTypes);
+    }
+
+    [Fact]
+    public void PreservesDescriptionBlockBoundaries()
+    {
+        const string html = """
+        <html>
+          <body>
+            <div class="job-content-top">
+              <div class="job-content-top-title">
+                <div><a title="Jobs | Backend Engineer" href="/Search/UploadSingle.aspx?JobID=8769958"><h2>Backend Engineer</h2></a></div>
+              </div>
+              <div class="job-content-top-desc AL LTR">
+                <p>Build backend services.</p>
+                <p>Requirements:</p>
+                <ul>
+                  <li>5+ years with C#</li>
+                  <li>Cloud experience</li>
+                </ul>
+              </div>
+            </div>
+          </body>
+        </html>
+        """;
+
+        var result = _parser.Parse(html, "AllJobs", CollectedAt);
+
+        var vacancy = Assert.Single(result.Vacancies);
+        Assert.Equal("Build backend services.\nRequirements:\n- 5+ years with C#\n- Cloud experience", vacancy.Description);
     }
 
     [Fact]

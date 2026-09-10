@@ -314,6 +314,12 @@ public sealed class JobWatcherRunner(
             return $"title-company:{normalizedTitle}|{normalizedCompany}";
         }
 
+        var normalizedDescription = NormalizeForOutputDeduplication(job.Description);
+        if (!string.IsNullOrWhiteSpace(normalizedTitle) && !string.IsNullOrWhiteSpace(normalizedDescription))
+        {
+            return $"title-description:{normalizedTitle}|{normalizedDescription}";
+        }
+
         if (!string.IsNullOrWhiteSpace(job.Url))
         {
             return $"url:{job.Url.Trim().ToLowerInvariant()}";
