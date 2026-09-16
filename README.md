@@ -365,9 +365,11 @@ responses and anti-bot challenges are not retried. When a source can preserve al
 listings after such a failure, it may report `partial_failed`; partial new vacancies are written to
 the output for review, while the previous snapshot is left unchanged.
 
-After a successful run, snapshot retention keeps snapshots for every enabled configured source, including sources that failed in that run. Only snapshots for sources no longer present in the configuration are deleted. A failed source keeps its previous snapshot: deleting it would make the next successful run report every vacancy as new, which matters for sources that fail intermittently.
+After a successful run, snapshot retention keeps snapshots for every configured source, including paused sources and sources that failed in that run. Only snapshots for sources no longer present in the configuration are deleted. A paused or failed source keeps its previous snapshot: deleting it would make the next successful run report every vacancy as new, which matters for sources that fail intermittently.
 
 Output history retention keeps only the latest `OutputHistoryRetentionCount` timestamped files in `data/output/history/` after a successful history write. The default is `2`.
+
+Each non-paused source run also writes `data/output/latest-sources/<source>.json`. The Results page can switch between `Latest run`, which shows only the newest run output, and `Latest per source`, which merges the newest non-paused output saved for each source. A paused profile does not overwrite its latest per-source output.
 
 Manual run logs in `data/diagnostics/manual-runs/` are pruned whenever a new log is created. Logs older than 24 hours are deleted; the current run log and newer logs are preserved.
 
@@ -395,13 +397,11 @@ Parser tests use local HTML fixtures and do not call the live website.
   roughly half an hour. Unattended scheduled runs will therefore find it blocked most of the time
   unless the export is refreshed. Making it unattended would mean browser automation for this one
   source, which has not been agreed.
-- Glassdoor descriptions are the search API's `descriptionFragmentsText` teaser, averaging about
-  150 characters, not the posting text. Fetching each vacancy's own page was considered and
-  **deliberately not implemented**: it would cost roughly one request per vacancy against a source
-  that blocks us and whose session lasts half an hour, and the `/job-listing/…htm` route answered
-  `403` even while the search API was working. The teaser plus the diff — which surfaces only a
-  handful of genuinely new vacancies per run — is enough to review by hand. Revisit only with a
-  captured job-detail API request, and enrich new vacancies only.
+- Glassdoor search results can omit description teasers, so the source enriches a bounded number of
+  listings through Glassdoor's `job-listing/api/job-details` endpoint and reads `jobDescription` /
+  `jobOverview.description` from that JSON response. Keep `GlassdoorFilter.MaxDetailsPerSearch`
+  conservative because access depends on a short-lived browser session and each enriched vacancy
+  costs another request.
 - The exposed result window churns: two captures 40 minutes apart shared only 18 of 30 listings.
   Repeated runs therefore keep surfacing listings a single run would miss, which softens the impact
   of a blocked run but also means counts are not stable between runs.

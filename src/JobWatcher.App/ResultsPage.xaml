@@ -4,11 +4,12 @@
              x:Class="JobWatcher.App.ResultsPage"
              Title="Results">
     <Grid Padding="24" RowDefinitions="Auto,Auto,Auto,*" RowSpacing="14">
-        <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="12">
+        <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto" ColumnSpacing="12">
             <Label x:Name="StatusLabel" Text="No completed run yet" FontSize="20" FontAttributes="Bold" />
             <Label x:Name="UpdatedLabel" Grid.Column="1" TextColor="{StaticResource Gray500}" VerticalOptions="Center" />
-            <Picker x:Name="ClassificationPicker" Grid.Column="2" Title="Classification" SelectedIndexChanged="OnFilterChanged" />
-            <Button Grid.Column="3" Text="Refresh" Clicked="OnRefreshClicked" />
+            <Picker x:Name="ViewModePicker" Grid.Column="2" Title="View" SelectedIndexChanged="OnViewModeChanged" />
+            <Picker x:Name="ClassificationPicker" Grid.Column="3" Title="Classification" SelectedIndexChanged="OnFilterChanged" />
+            <Button Grid.Column="4" Text="Refresh" Clicked="OnRefreshClicked" />
         </Grid>
         <Border Grid.Row="1" Padding="14" Stroke="{StaticResource Gray200}">
             <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="1.1*,1.1*,160,1*,Auto" RowSpacing="6" ColumnSpacing="12">
@@ -83,10 +84,13 @@
                     </Grid>
                     <Label Grid.Row="1" x:Name="DetailsMetadataLabel" TextColor="{StaticResource Gray500}" LineBreakMode="WordWrap" />
                     <Label Grid.Row="2" Text="Description" FontAttributes="Bold" />
-                    <ScrollView Grid.Row="3">
+                    <ScrollView x:Name="DetailsDescriptionScrollView" Grid.Row="3">
                         <Label x:Name="DetailsDescriptionLabel" LineBreakMode="WordWrap" LineHeight="1.35" />
                     </ScrollView>
-                    <Button Grid.Row="4" Text="Close" Clicked="OnCloseDetailsClicked" HorizontalOptions="End" />
+                    <HorizontalStackLayout Grid.Row="4" HorizontalOptions="End" Spacing="8">
+                        <Button Text="Copy" Clicked="OnCopyDetailsClicked" />
+                        <Button Text="Close" Clicked="OnCloseDetailsClicked" />
+                    </HorizontalStackLayout>
                 </Grid>
             </Border>
         </Grid>

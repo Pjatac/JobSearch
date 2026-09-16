@@ -36,12 +36,14 @@ public sealed class JobWatcherRunner(
         var successfulSnapshots = new List<SourceSnapshot>();
 
         // Snapshot retention removes snapshots of sources that are no longer configured. A source
-        // that ran and failed keeps its snapshot: deleting it would make the next successful run
-        // report every vacancy as new, which matters for sources that fail intermittently.
+        // that is paused or ran and failed keeps its snapshot: deleting it would make the next
+        // successful run report every vacancy as new.
         var retainedSnapshotSources = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var sourceOptions in options.Value.Sources)
         {
+            retainedSnapshotSources.Add(sourceOptions.Name);
+
             if (!sourceOptions.Enabled)
             {
                 var disabledOutput = new SourceOutput { Source = sourceOptions.Name, Status = "disabled" };
@@ -51,7 +53,6 @@ public sealed class JobWatcherRunner(
             }
 
             enabledCount++;
-            retainedSnapshotSources.Add(sourceOptions.Name);
             NotifyStarted(sourceOptions.Name);
             var adapterName = sourceOptions.Adapter ?? sourceOptions.Name;
             var sourceStopwatch = Stopwatch.StartNew();
@@ -248,6 +249,7 @@ public sealed class JobWatcherRunner(
         await WriteOutputDuplicatesAsync(generatedAtUtc, sourceOutputs, cancellationToken);
         await WriteDuplicateCandidatesOutputAsync(generatedAtUtc, successfulSnapshots, cancellationToken);
         await WriteHistoryOutputAsync(generatedAtUtc, output, cancellationToken);
+        await WriteLatestSourceOutputsAsync(generatedAtUtc, sourceOutputs, cancellationToken);
         logger.LogInformation("Wrote run output to {OutputPath}", outputPath);
 
         if (enabledCount == 0 || (successCount == 0 && partialCount == 0))
@@ -350,7 +352,28 @@ public sealed class JobWatcherRunner(
         Directory.CreateDirectory(Path.Combine(options.Value.DataDirectory, "snapshots"));
         Directory.CreateDirectory(Path.Combine(options.Value.DataDirectory, "output"));
         Directory.CreateDirectory(Path.Combine(options.Value.DataDirectory, "output", "history"));
+        Directory.CreateDirectory(Path.Combine(options.Value.DataDirectory, "output", "latest-sources"));
         Directory.CreateDirectory(Path.Combine(options.Value.DataDirectory, "diagnostics"));
+    }
+
+    private async Task WriteLatestSourceOutputsAsync(
+        DateTimeOffset generatedAtUtc,
+        IReadOnlyList<SourceOutput> sourceOutputs,
+        CancellationToken cancellationToken)
+    {
+        var latestSourcesDirectory = Path.Combine(options.Value.DataDirectory, "output", "latest-sources");
+        foreach (var sourceOutput in sourceOutputs.Where(source => source.Status != "disabled"))
+        {
+            var output = new RunOutput
+            {
+                GeneratedAtUtc = generatedAtUtc,
+                HasFailures = sourceOutput.Status is not "success",
+                TotalNewJobs = sourceOutput.NewCount,
+                Sources = [sourceOutput]
+            };
+            var path = Path.Combine(latestSourcesDirectory, $"{FileNames.ToSafeName(sourceOutput.Source)}.json");
+            await AtomicFileWriter.WriteJsonAsync(path, output, cancellationToken);
+        }
     }
 
     private async Task WriteHistoryOutputAsync(DateTimeOffset generatedAtUtc, RunOutput output, CancellationToken cancellationToken)

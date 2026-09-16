@@ -6,6 +6,7 @@ public sealed record JobVacancy
     public required string ExternalId { get; init; }
     public required string Title { get; init; }
     public string? Company { get; init; }
+    public double? CompanyRating { get; init; }
     public string? Location { get; init; }
     public required string Url { get; init; }
     public string? Description { get; init; }

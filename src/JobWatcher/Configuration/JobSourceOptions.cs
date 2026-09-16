@@ -96,6 +96,12 @@ public sealed class GlassdoorFilterOptions
 
     /// <summary>Results requested per page. The site itself asks for 30.</summary>
     public int JobsPerPage { get; init; } = 30;
+
+    /// <summary>
+    /// Safety ceiling on job-detail API calls used to enrich listing descriptions. Keep this
+    /// conservative because Glassdoor access depends on a short-lived browser session.
+    /// </summary>
+    public int MaxDetailsPerSearch { get; init; } = 30;
 }
 
 public sealed class SecretTelAvivFilterOptions

@@ -148,6 +148,7 @@ public partial class SourceProfilesPage : ContentPage
     private Entry? glassdoorDelayEntry;
     private Entry? glassdoorMaxPagesEntry;
     private Entry? glassdoorJobsPerPageEntry;
+    private Entry? glassdoorMaxDetailsEntry;
     private Entry? secretTelAvivBaseUrlEntry;
     private Entry? secretTelAvivSearchUrlEntry;
     private Entry? secretTelAvivMaxDetailsEntry;
@@ -658,9 +659,10 @@ public partial class SourceProfilesPage : ContentPage
         {
             if (!TryParseDouble(glassdoorDelayEntry?.Text, out var delay) || delay < 0 ||
                 !TryParseInt(glassdoorMaxPagesEntry?.Text, out var maxPages) || maxPages < 0 ||
-                !TryParseInt(glassdoorJobsPerPageEntry?.Text, out var jobsPerPage) || jobsPerPage < 0)
+                !TryParseInt(glassdoorJobsPerPageEntry?.Text, out var jobsPerPage) || jobsPerPage < 0 ||
+                !TryParseInt(glassdoorMaxDetailsEntry?.Text, out var maxDetails) || maxDetails < 0)
             {
-                await DisplayAlertAsync("Check the profile", "Glassdoor delay and page limits must be zero or greater.", "OK");
+                await DisplayAlertAsync("Check the profile", "Glassdoor delay, page limits, and maximum details must be zero or greater.", "OK");
                 return false;
             }
 
@@ -670,7 +672,8 @@ public partial class SourceProfilesPage : ContentPage
                 SearchUrls = SplitLines(glassdoorSearchUrlsEditor?.Text),
                 RequestDelaySeconds = delay,
                 MaxPages = maxPages,
-                JobsPerPage = jobsPerPage
+                JobsPerPage = jobsPerPage,
+                MaxDetailsPerSearch = maxDetails
             };
         }
 
@@ -995,6 +998,7 @@ public partial class SourceProfilesPage : ContentPage
         glassdoorDelayEntry = AddEntry("Request delay seconds", filter.RequestDelaySeconds.ToString(System.Globalization.CultureInfo.InvariantCulture));
         glassdoorMaxPagesEntry = AddEntry("Maximum pages", filter.MaxPages.ToString());
         glassdoorJobsPerPageEntry = AddEntry("Jobs per page", filter.JobsPerPage.ToString());
+        glassdoorMaxDetailsEntry = AddEntry("Maximum detail pages per search", filter.MaxDetailsPerSearch.ToString());
     }
 
     private void AddSecretTelAvivFields(JobSourceOptions source)

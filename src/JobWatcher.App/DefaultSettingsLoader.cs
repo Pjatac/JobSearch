@@ -8,6 +8,15 @@ internal static class DefaultSettingsLoader
     {
         foreach (var assetName in AssetNames)
         {
+            var unpackagedPath = Path.Combine(AppContext.BaseDirectory, assetName.Replace('/', Path.DirectorySeparatorChar));
+            if (File.Exists(unpackagedPath))
+            {
+                return await File.ReadAllTextAsync(unpackagedPath);
+            }
+        }
+
+        foreach (var assetName in AssetNames)
+        {
             try
             {
                 await using var stream = await FileSystem.OpenAppPackageFileAsync(assetName);

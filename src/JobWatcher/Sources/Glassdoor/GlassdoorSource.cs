@@ -53,6 +53,7 @@ public sealed class GlassdoorSource(
             var requestDelay = TimeSpan.FromSeconds(Math.Max(0, options.GlassdoorFilter?.RequestDelaySeconds ?? DefaultRequestDelaySeconds));
             var maxPages = Math.Max(1, options.GlassdoorFilter?.MaxPages ?? 7);
             var jobsPerPage = Math.Max(1, options.GlassdoorFilter?.JobsPerPage ?? 30);
+            var maxDetails = Math.Max(0, options.GlassdoorFilter?.MaxDetailsPerSearch ?? 30);
 
             var vacancies = new Dictionary<string, JobVacancy>(StringComparer.OrdinalIgnoreCase);
             var isFirstRequest = true;
@@ -161,7 +162,8 @@ public sealed class GlassdoorSource(
                 }
             }
 
-            var orderedVacancies = vacancies.Values.OrderBy(v => v.ExternalId, StringComparer.OrdinalIgnoreCase).ToList();
+            var enriched = await EnrichDetailsAsync(client, vacancies.Values.ToList(), options, collectedAtUtc, warnings, Pace, maxDetails, cancellationToken);
+            var orderedVacancies = enriched.OrderBy(v => v.ExternalId, StringComparer.OrdinalIgnoreCase).ToList();
             if (orderedVacancies.Count < options.MinimumExpectedVacancies)
             {
                 return Failed(options.Name, warnings, $"Parsed {orderedVacancies.Count} vacancies, below minimum {options.MinimumExpectedVacancies}.");
@@ -203,6 +205,120 @@ public sealed class GlassdoorSource(
         {
             return Failed(options.Name, warnings, ex.Message);
         }
+    }
+
+    private async Task<IReadOnlyList<JobVacancy>> EnrichDetailsAsync(
+        HttpClient client,
+        IReadOnlyList<JobVacancy> vacancies,
+        JobSourceOptions options,
+        DateTimeOffset collectedAtUtc,
+        List<string> warnings,
+        Func<CancellationToken, Task> pace,
+        int maxDetails,
+        CancellationToken cancellationToken)
+    {
+        if (maxDetails <= 0 || vacancies.Count == 0)
+        {
+            return vacancies;
+        }
+
+        var enriched = new List<JobVacancy>(vacancies.Count);
+        var detailCount = 0;
+        var detailFailures = 0;
+        var detailParseMisses = 0;
+
+        logger.LogInformation(
+            "Enriching source {Source} details for up to {MaxDetails} of {VacancyCount} Glassdoor vacancies",
+            options.Name,
+            maxDetails,
+            vacancies.Count);
+
+        foreach (var vacancy in vacancies)
+        {
+            if (detailCount >= maxDetails)
+            {
+                enriched.Add(vacancy);
+                continue;
+            }
+
+            detailCount++;
+            await pace(cancellationToken);
+            logger.LogInformation("Fetching source {Source} details for listing {ListingId}", options.Name, vacancy.ExternalId);
+
+            using var response = await HttpRequestRetryPolicy.SendAsync(
+                client,
+                () =>
+                {
+                    var message = new HttpRequestMessage(HttpMethod.Get, BuildDetailApiUrl(vacancy));
+                    message.Headers.TryAddWithoutValidation("accept", "*/*");
+                    message.Headers.TryAddWithoutValidation("sec-fetch-site", "same-origin");
+                    message.Headers.TryAddWithoutValidation("sec-fetch-mode", "cors");
+                    message.Headers.TryAddWithoutValidation("sec-fetch-dest", "empty");
+                    message.Headers.TryAddWithoutValidation("referer", "https://www.glassdoor.com/");
+                    message.Headers.TryAddWithoutValidation("priority", "u=1, i");
+                    return message;
+                },
+                logger,
+                options.Name,
+                $"GET Glassdoor job details {vacancy.ExternalId}",
+                cancellationToken);
+            var body = await response.Content.ReadAsStringAsync(cancellationToken);
+
+            var challenge = GlassdoorChallengeDetector.Detect(response.StatusCode, body);
+            if (challenge is not null)
+            {
+                await SaveDiagnosticAsync(body, options.Name, collectedAtUtc, "json", cancellationToken);
+                warnings.Add($"Stopped Glassdoor detail enrichment after {detailCount - 1} listings: {challenge}");
+                enriched.Add(vacancy);
+                enriched.AddRange(vacancies.Skip(detailCount));
+                detailFailures++;
+                break;
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                warnings.Add($"Glassdoor detail API returned HTTP {(int)response.StatusCode} for listing {vacancy.ExternalId}; kept listing without detail description.");
+                enriched.Add(vacancy);
+                detailFailures++;
+                continue;
+            }
+
+            var parsed = apiParser.ParseDetail(body, vacancy);
+            if (parsed is null)
+            {
+                detailParseMisses++;
+                logger.LogInformation(
+                    "Glassdoor detail API response for listing {ListingId} did not include a usable description",
+                    vacancy.ExternalId);
+                enriched.Add(vacancy);
+                continue;
+            }
+
+            enriched.Add(parsed);
+        }
+
+        if (vacancies.Count > maxDetails)
+        {
+            warnings.Add($"Glassdoor detail enrichment limited to {maxDetails} of {vacancies.Count} vacancies.");
+        }
+
+        if (detailFailures > 0)
+        {
+            warnings.Add($"Glassdoor detail enrichment failed for {detailFailures} of {detailCount} attempted vacancies.");
+        }
+
+        if (detailParseMisses > 0)
+        {
+            warnings.Add($"Glassdoor detail enrichment received no usable description for {detailParseMisses} of {detailCount} successful detail responses.");
+        }
+
+        return enriched;
+    }
+
+    private static string BuildDetailApiUrl(JobVacancy vacancy)
+    {
+        var query = Uri.EscapeDataString(vacancy.Url);
+        return $"https://www.glassdoor.com/job-listing/api/job-details?jobListingId={Uri.EscapeDataString(vacancy.ExternalId)}&pageTypeEnum=SERP&queryString={query}&countryId=1";
     }
 
     private async Task<(IReadOnlyList<JobVacancy> Vacancies, string? Error)> FetchHtmlPageAsync(

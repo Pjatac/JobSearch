@@ -277,6 +277,90 @@ public sealed class JobWatcherRunnerOutputTests
     }
 
     [Fact]
+    public async Task DisabledConfiguredSourceKeepsItsPreviousSnapshot()
+    {
+        using var temp = new TempDirectory();
+        var enabledOptions = Options.Create(new JobWatcherOptions
+        {
+            DataDirectory = temp.Path,
+            Sources =
+            [
+                new JobSourceOptions { Name = "DevJobs-Backend", Adapter = "DevJobs", Url = "https://example.test/devjobs" },
+                new JobSourceOptions { Name = "JobKarov-Software", Adapter = "JobKarov", Url = "https://example.test/software" }
+            ]
+        });
+        var store = new JsonSnapshotStore(enabledOptions, NullLogger<JsonSnapshotStore>.Instance);
+        var snapshotPath = store.GetSnapshotPath("DevJobs-Backend");
+
+        Assert.Equal(0, await CreateRunner(enabledOptions, [
+            new StaticSource("DevJobs", Vacancy("devjobs-1")),
+            new StaticSource("JobKarov", Vacancy("jobkarov-1"))
+        ], store).RunAsync(CancellationToken.None));
+        Assert.True(File.Exists(snapshotPath));
+
+        var pausedOptions = Options.Create(new JobWatcherOptions
+        {
+            DataDirectory = temp.Path,
+            Sources =
+            [
+                new JobSourceOptions { Name = "DevJobs-Backend", Adapter = "DevJobs", Enabled = false, Url = "https://example.test/devjobs" },
+                new JobSourceOptions { Name = "JobKarov-Software", Adapter = "JobKarov", Url = "https://example.test/software" }
+            ]
+        });
+
+        Assert.Equal(0, await CreateRunner(pausedOptions, [
+            new StaticSource("JobKarov", Vacancy("jobkarov-2"))
+        ], store).RunAsync(CancellationToken.None));
+
+        var snapshot = await store.LoadAsync("DevJobs-Backend", CancellationToken.None);
+        Assert.True(File.Exists(snapshotPath));
+        Assert.Equal("devjobs-1", Assert.Single(snapshot!.Vacancies).ExternalId);
+    }
+
+    [Fact]
+    public async Task DisabledConfiguredSourceKeepsItsLatestPerSourceOutput()
+    {
+        using var temp = new TempDirectory();
+        var enabledOptions = Options.Create(new JobWatcherOptions
+        {
+            DataDirectory = temp.Path,
+            Sources =
+            [
+                new JobSourceOptions { Name = "DevJobs-Backend", Adapter = "DevJobs", Url = "https://example.test/devjobs" },
+                new JobSourceOptions { Name = "JobKarov-Software", Adapter = "JobKarov", Url = "https://example.test/software" }
+            ]
+        });
+        var store = new JsonSnapshotStore(enabledOptions, NullLogger<JsonSnapshotStore>.Instance);
+        var latestPath = Path.Combine(temp.Path, "output", "latest-sources", "devjobs-backend.json");
+
+        Assert.Equal(0, await CreateRunner(enabledOptions, [
+            new StaticSource("DevJobs", Vacancy("devjobs-1")),
+            new StaticSource("JobKarov", Vacancy("jobkarov-1"))
+        ], store).RunAsync(CancellationToken.None));
+
+        var firstOutput = await LoadOutputFileAsync(latestPath);
+        Assert.Equal("devjobs-1", Assert.Single(firstOutput!.Sources[0].NewJobs).ExternalId);
+
+        var pausedOptions = Options.Create(new JobWatcherOptions
+        {
+            DataDirectory = temp.Path,
+            Sources =
+            [
+                new JobSourceOptions { Name = "DevJobs-Backend", Adapter = "DevJobs", Enabled = false, Url = "https://example.test/devjobs" },
+                new JobSourceOptions { Name = "JobKarov-Software", Adapter = "JobKarov", Url = "https://example.test/software" }
+            ]
+        });
+
+        Assert.Equal(0, await CreateRunner(pausedOptions, [
+            new StaticSource("JobKarov", Vacancy("jobkarov-2"))
+        ], store).RunAsync(CancellationToken.None));
+
+        var latestOutput = await LoadOutputFileAsync(latestPath);
+        Assert.Equal("devjobs-1", Assert.Single(latestOutput!.Sources[0].NewJobs).ExternalId);
+        Assert.Equal("success", latestOutput.Sources[0].Status);
+    }
+
+    [Fact]
     public async Task PartialFailedSourceWritesOutputButDoesNotReplaceSnapshot()
     {
         using var temp = new TempDirectory();
@@ -362,7 +446,12 @@ public sealed class JobWatcherRunnerOutputTests
 
     private static async Task<RunOutput?> LoadOutputAsync(string dataDirectory)
     {
-        await using var stream = File.OpenRead(Path.Combine(dataDirectory, "output", "new-jobs.json"));
+        return await LoadOutputFileAsync(Path.Combine(dataDirectory, "output", "new-jobs.json"));
+    }
+
+    private static async Task<RunOutput?> LoadOutputFileAsync(string path)
+    {
+        await using var stream = File.OpenRead(path);
         return await JobWatcher.Utilities.JsonDefaults.DeserializeAsync<RunOutput>(stream, CancellationToken.None);
     }
 
