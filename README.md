@@ -4,7 +4,9 @@ Job Watcher has a .NET 10 collection core, a console host, and a .NET MAUI appli
 collector checks configured job-search sources, stores a complete snapshot per source, and writes
 a JSON output containing only newly discovered vacancies.
 
-The first source adapter is `JobKarov`; `Drushim`, `AllJobs`, `JobSwipe.co`, and `Glassdoor` are also supported. Each source has its own URL builder and filter taxonomy because the numeric parameters are site-specific.
+The first source adapter is `JobKarov`; `Drushim`, `AllJobs`, `JobSwipe.co`, `Secret Tel Aviv`,
+`DevJobs`, and `Glassdoor` are also supported. Each source has its own URL builder and filter
+taxonomy because the numeric parameters are site-specific.
 
 ## Architecture
 
@@ -12,7 +14,8 @@ The first source adapter is `JobKarov`; `Drushim`, `AllJobs`, `JobSwipe.co`, and
 - `Sources/JobKarov` fetches JobKarov with `HttpClient` and extracts vacancies from JSON-LD.
 - `Sources/AllJobs` fetches AllJobs with cookie-aware `HttpClient` pagination and extracts vacancies from server-rendered HTML.
 - `Sources/JobSwipeCo` fetches JobSwipe.co search pages, extracts job detail URLs from JSON-LD ItemList, and extracts vacancies from detail-page JobPosting JSON-LD.
-- `Sources/Glassdoor` fetches Glassdoor search pages and extracts vacancies from server-rendered result cards, with JSON-LD `ItemList` as a fallback.
+- `Sources/Glassdoor` fetches Glassdoor's search API with an exported browser session, follows
+  cursor pagination, and enriches listings through the job-detail API.
 - `Http/TlsClientMessageHandler.cs` adapts `HttpClient` onto a browser-fingerprinted `TlsSession`.
 - `Services/JobComparisonService.cs` compares complete snapshots by `Source + ExternalId`.
 - `Services/OutputDuplicateService.cs` reviews the delivered `newJobs` list for repeated postings.
@@ -88,14 +91,24 @@ is not required. Drushim category/subcategory/area IDs are not interchangeable w
 
 AllJobs uses normal page-number pagination in `SearchResultsGuest.aspx?page=N`. A cookie-aware HTTP client is used because direct page 2 requests can hit a Radware interstitial without the first-page session. The site is treated as a one-position-at-a-time search: profiles may contain multiple `Positions`, but the source fetches each position separately and deduplicates the merged result set.
 
+The app profile editor exposes popup selectors for configured AllJobs positions, employment types,
+and regions. Positions also have a synchronized `Position IDs` field: selecting positions updates
+the comma-separated IDs, and editing/removing IDs updates the selector state. IDs copied from
+AllJobs that are not in the built-in catalog are kept as `Custom` choices instead of being dropped.
+
 - Backend Programmer: `position=1759`
 - Backend Engineer: `position=1994`
 - `.NET`: `position=1152`
 - `C#`: `position=1203`
 - Senior Backend Developer: `position=1848` (additional catcher, not the primary focus)
-- Center region: `region=2`
-- Hasharon region: `region=6`
-- full-time type: `type=4`
+- The built-in technology catalog also starts covering adjacent AllJobs sections/professions such
+  as AI `1998`, QA `431`, AI Engineer `2006`, Gen AI Engineer `2158`, AI Developer `2004`,
+  AI Researcher `1999`, Research Engineer `2162`, QA Software `432`, QA Engineer `434`,
+  Manual QA `1532`, Automation QA `1533`, QA Team Lead `1365`, NLP / Machine Learning `1779`,
+  Data Scientist `1733`, and Python Developer `1694`.
+- Region catalog: North `1`, Center `2`, South `3`, Jerusalem `4`, Shfela `5`, Hasharon `6`
+- Employment type catalog: Full-time `4`, Part-time `5`, Temporary `10`, Shifts `12`,
+  Student `13`, Hybrid `14`, Internship `25`, Multiple types `33`
 - recency parameter: `duration=25`
 
 Configured AllJobs URL shape:
@@ -171,7 +184,8 @@ Two things the preset does not cover, both handled explicitly:
   Glassdoor client uses `SetHandlerLifetime(Timeout.InfiniteTimeSpan)`; the process is short-lived.
 
 Requests are paced by `glassdoorFilter.requestDelaySeconds` (default `1`). This is a delay between
-distinct requests only — a blocked request is never retried.
+distinct requests only — a blocked request is never retried. The same delay is used for search
+pages and job-detail requests.
 
 Search URLs are configured as bare SEO paths. Glassdoor's own search form appends redundant query
 parameters (`locId`, `locT`, `sc.keyword`) that duplicate values already encoded in the path, and
@@ -232,6 +246,18 @@ reports its failure, but its failure does not make the process exit non-zero.
 block is never mistaken for "the parser found nothing". The adapter never retries a challenge, and
 never rotates headers or fingerprints to get around one.
 
+Glassdoor descriptions are not taken from the short search teaser. The adapter enriches up to
+`GlassdoorFilter.MaxDetailsPerSearch` listings with:
+
+```text
+GET https://www.glassdoor.com/job-listing/api/job-details?jobListingId=<id>&...
+```
+
+The detail parser reads `jobDescription` / `jobOverview.description`, preserves useful plain-text
+structure (paragraph breaks, headings, and bullet lists), removes injected CSS noise, and carries
+company rating when the API exposes it. A response that succeeds but has no usable description
+keeps the listing without a Details button and records an aggregate warning.
+
 ## Configuration
 
 `src/JobWatcher/appsettings.json` is the shipped default template. `name` is the unique
@@ -252,6 +278,13 @@ In the MAUI app, the Results page has two optional quick filters over already co
 `Long commute` keeps only jobs whose classification has the far-commute flag. They do not alter
 the requests sent to job sites. Their labels and signals are configured through the Classification
 page (`specialInterestLabel`, `cyberSignals`, and `farCommuteLocations`).
+
+The Results page can show either `Latest run` or `Latest per source`. `Latest run` is exactly the
+last completed run. `Latest per source` merges the newest saved non-paused output for each source,
+so temporarily paused profiles remain reviewable. Result cards are numbered in the currently
+filtered/sorted view, and the Details popup includes a Copy button. Detail text is saved and shown
+as readable plain text, not rendered HTML, so it keeps useful paragraphs and bullets without
+bringing source-site styling into the app.
 
 ```json
 {
@@ -391,6 +424,50 @@ dotnet test JobWatcher.sln -m:1
 
 Parser tests use local HTML fixtures and do not call the live website.
 
+## Windows App And Distribution
+
+The MAUI app stores user settings, snapshots, output, logs, and secrets under:
+
+```text
+%LOCALAPPDATA%\User Name\com.jobwatcher.app\Data
+```
+
+Important subdirectories:
+
+- `settings/jobwatcher.json` — user-editable source profiles and classification settings seeded
+  from `src/JobWatcher/appsettings.json` on first launch.
+- `data/snapshots/` — durable comparison state. Removing one source snapshot makes the next
+  successful run treat that source's current vacancies as new.
+- `data/output/new-jobs.json` — latest completed run output.
+- `data/output/latest-sources/` — newest saved output per non-paused source.
+- `data/diagnostics/manual-runs/` — per-run logs; logs older than 24 hours are pruned on new runs.
+- `data/secrets/glassdoor-session.txt` — exported browser session; this is secret and should never
+  be committed or shared casually.
+
+For local development:
+
+```powershell
+dotnet build JobWatcher.sln --no-restore -m:1 /p:UseSharedCompilation=false
+dotnet test JobWatcher.sln -m:1
+```
+
+For a simple Windows folder that can be zipped and handed to a non-developer, publish the MAUI app
+as an unpackaged self-contained build:
+
+```powershell
+dotnet publish src/JobWatcher.App/JobWatcher.App.csproj -c Release -f net10.0-windows10.0.19041.0 -r win-x64 --self-contained true -p:WindowsPackageType=None
+```
+
+Zip the resulting `bin\Release\net10.0-windows10.0.19041.0\win-x64\publish\` folder and tell the
+user to run `JobWatcher.App.exe`. This is the lowest-friction delivery path, but Windows SmartScreen
+may warn because the binary is not code-signed.
+
+For broad non-technical distribution, prefer a signed MSIX installer or Microsoft Store/App
+Installer distribution. That requires switching from the current unpackaged development mode,
+creating a publisher identity/certificate, signing the package, and documenting install/update
+steps. Do not send `data/secrets/glassdoor-session.txt` with a build; each user must export their
+own Glassdoor session if they need Glassdoor.
+
 ## Open Questions
 
 - Glassdoor works only with a manually exported browser session, and that session expires within
@@ -405,7 +482,6 @@ Parser tests use local HTML fixtures and do not call the live website.
 - The exposed result window churns: two captures 40 minutes apart shared only 18 of 30 listings.
   Repeated runs therefore keep surfacing listings a single run would miss, which softens the impact
   of a blocked run but also means counts are not stable between runs.
-- Glassdoor "Show more jobs" pagination is not automated; only the first 30 of ~251 results are captured.
 
 ## Agent Instructions
 
