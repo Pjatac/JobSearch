@@ -167,5 +167,43 @@
                 </Grid>
             </Border>
         </Grid>
+        <Grid x:Name="AllJobsTypesDialog" Grid.ColumnSpan="2" BackgroundColor="#80000000" IsVisible="False" Padding="24">
+            <Border BackgroundColor="{AppThemeBinding Light=White, Dark=#202020}" Stroke="{StaticResource Gray300}" StrokeShape="RoundRectangle 8" MaximumWidthRequest="900" HorizontalOptions="Center" VerticalOptions="Fill">
+                <Grid Padding="24" RowDefinitions="Auto,Auto,*,Auto" RowSpacing="16">
+                    <Label Text="AllJobs employment types" FontSize="22" FontAttributes="Bold" />
+                    <HorizontalStackLayout Grid.Row="1" Spacing="8">
+                        <Button Text="Select all" Clicked="OnSelectAllAllJobsTypesClicked" />
+                        <Button Text="Clear" Clicked="OnClearAllJobsTypesClicked" />
+                    </HorizontalStackLayout>
+                    <CollectionView x:Name="AllJobsTypesList" Grid.Row="2" SelectionMode="None">
+                        <CollectionView.ItemsLayout><GridItemsLayout Orientation="Vertical" Span="2" HorizontalItemSpacing="20" VerticalItemSpacing="6" /></CollectionView.ItemsLayout>
+                        <CollectionView.ItemTemplate><DataTemplate><HorizontalStackLayout Spacing="4"><CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}" /><Label Text="{Binding DisplayName}" VerticalOptions="Center" LineBreakMode="WordWrap" /></HorizontalStackLayout></DataTemplate></CollectionView.ItemTemplate>
+                    </CollectionView>
+                    <HorizontalStackLayout Grid.Row="3" HorizontalOptions="End" Spacing="8">
+                        <Button Text="Cancel" Clicked="OnCancelAllJobsTypesClicked" />
+                        <Button Text="Done" Clicked="OnDoneAllJobsTypesClicked" />
+                    </HorizontalStackLayout>
+                </Grid>
+            </Border>
+        </Grid>
+        <Grid x:Name="AllJobsRegionsDialog" Grid.ColumnSpan="2" BackgroundColor="#80000000" IsVisible="False" Padding="24">
+            <Border BackgroundColor="{AppThemeBinding Light=White, Dark=#202020}" Stroke="{StaticResource Gray300}" StrokeShape="RoundRectangle 8" MaximumWidthRequest="900" HorizontalOptions="Center" VerticalOptions="Fill">
+                <Grid Padding="24" RowDefinitions="Auto,Auto,*,Auto" RowSpacing="16">
+                    <Label Text="AllJobs regions" FontSize="22" FontAttributes="Bold" />
+                    <HorizontalStackLayout Grid.Row="1" Spacing="8">
+                        <Button Text="Select all" Clicked="OnSelectAllAllJobsRegionsClicked" />
+                        <Button Text="Clear" Clicked="OnClearAllJobsRegionsClicked" />
+                    </HorizontalStackLayout>
+                    <CollectionView x:Name="AllJobsRegionsList" Grid.Row="2" SelectionMode="None">
+                        <CollectionView.ItemsLayout><GridItemsLayout Orientation="Vertical" Span="2" HorizontalItemSpacing="20" VerticalItemSpacing="6" /></CollectionView.ItemsLayout>
+                        <CollectionView.ItemTemplate><DataTemplate><HorizontalStackLayout Spacing="4"><CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}" /><Label Text="{Binding DisplayName}" VerticalOptions="Center" LineBreakMode="WordWrap" /></HorizontalStackLayout></DataTemplate></CollectionView.ItemTemplate>
+                    </CollectionView>
+                    <HorizontalStackLayout Grid.Row="3" HorizontalOptions="End" Spacing="8">
+                        <Button Text="Cancel" Clicked="OnCancelAllJobsRegionsClicked" />
+                        <Button Text="Done" Clicked="OnDoneAllJobsRegionsClicked" />
+                    </HorizontalStackLayout>
+                </Grid>
+            </Border>
+        </Grid>
     </Grid>
 </ContentPage>

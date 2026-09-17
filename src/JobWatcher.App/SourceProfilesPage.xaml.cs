@@ -76,11 +76,46 @@ public partial class SourceProfilesPage : ContentPage
     ];
     private static readonly AllJobsPosition[] AllJobsPositions =
     [
+        new(1998, "AI", "Technology categories"),
+        new(431, "Quality Assurance QA", "Technology categories"),
+        new(2006, "AI Engineer", "AI"),
+        new(2158, "Gen AI Engineer", "AI"),
+        new(2004, "AI Developer", "AI"),
+        new(1999, "AI Researcher", "AI"),
+        new(2162, "Research Engineer", "AI"),
+        new(432, "QA Software", "QA"),
+        new(434, "QA Engineer", "QA"),
+        new(1532, "Manual QA", "QA"),
+        new(1533, "Automation QA", "QA"),
+        new(1365, "QA Team Lead", "QA"),
+        new(1779, "NLP / Machine Learning", "Software"),
+        new(1733, "Data Scientist", "Software"),
+        new(1694, "Python Developer", "Software"),
         new(1759, "Backend Programmer", "Software"),
         new(1994, "Backend Engineer", "Software"),
         new(1152, ".NET", "Software"),
         new(1203, "C#", "Software"),
         new(1848, "Senior Backend Developer", "Software")
+    ];
+    private static readonly AllJobsFilterChoice[] AllJobsEmploymentTypes =
+    [
+        new(4, "Full-time", "Employment type"),
+        new(5, "Part-time", "Employment type"),
+        new(10, "Temporary", "Employment type"),
+        new(12, "Shifts", "Employment type"),
+        new(13, "Student", "Employment type"),
+        new(14, "Hybrid", "Employment type"),
+        new(25, "Internship", "Employment type"),
+        new(33, "Multiple types", "Employment type")
+    ];
+    private static readonly AllJobsFilterChoice[] AllJobsRegions =
+    [
+        new(1, "North", "Region"),
+        new(2, "Center", "Region"),
+        new(3, "South", "Region"),
+        new(4, "Jerusalem", "Region"),
+        new(5, "Shfela", "Region"),
+        new(6, "Hasharon", "Region")
     ];
 
     private readonly JobWatcherSettingsStore settingsStore;
@@ -134,11 +169,19 @@ public partial class SourceProfilesPage : ContentPage
     private HashSet<int>? allJobsPositionDialogSelection;
     private readonly List<AllJobsPositionOption> allJobsPositionOptions = AllJobsPositions.Select(position => new AllJobsPositionOption(position)).ToList();
     private Label? allJobsPositionsSummary;
-    private Entry? allJobsTypesEntry;
+    private Entry? allJobsPositionsEntry;
+    private bool isSyncingAllJobsPositionsEntry;
+    private readonly HashSet<int> allJobsSelectedTypes = [];
+    private HashSet<int>? allJobsTypeDialogSelection;
+    private readonly List<AllJobsFilterChoiceOption> allJobsTypeOptions = AllJobsEmploymentTypes.Select(type => new AllJobsFilterChoiceOption(type)).ToList();
+    private Label? allJobsTypesSummary;
     private Entry? allJobsSourceEntry;
     private Entry? allJobsDurationEntry;
     private Entry? allJobsExcludeEntry;
-    private Entry? allJobsRegionEntry;
+    private readonly HashSet<int> allJobsSelectedRegions = [];
+    private HashSet<int>? allJobsRegionDialogSelection;
+    private readonly List<AllJobsFilterChoiceOption> allJobsRegionOptions = AllJobsRegions.Select(region => new AllJobsFilterChoiceOption(region)).ToList();
+    private Label? allJobsRegionsSummary;
     private Entry? allJobsMaxPagesEntry;
     private Entry? jobSwipeBaseUrlEntry;
     private Microsoft.Maui.Controls.Editor? jobSwipeSearchUrlsEditor;
@@ -503,7 +546,6 @@ public partial class SourceProfilesPage : ContentPage
 
     private JobSourceOptions BuildAllJobsPreview(JobSourceOptions source)
     {
-        _ = TryParseIntList(allJobsTypesEntry?.Text, out var types);
         _ = TryParseOptionalInt(allJobsSourceEntry?.Text, out var sourceId);
         _ = TryParseOptionalInt(allJobsDurationEntry?.Text, out var duration);
         var positions = SelectedAllJobsPositions();
@@ -517,11 +559,11 @@ public partial class SourceProfilesPage : ContentPage
                 BaseUrl = allJobsBaseUrlEntry?.Text?.Trim() ?? string.Empty,
                 Position = positions.FirstOrDefault(),
                 Positions = positions,
-                Types = types,
+                Types = SelectedAllJobsTypes(),
                 Source = sourceId,
                 Duration = duration,
                 Exclude = allJobsExcludeEntry?.Text?.Trim(),
-                Region = allJobsRegionEntry?.Text?.Trim()
+                Region = BuildAllJobsRegionValue()
             }
         };
     }
@@ -613,26 +655,32 @@ public partial class SourceProfilesPage : ContentPage
         var allJobsFilter = previous.AllJobsFilter;
         if (string.Equals(previous.Adapter, "AllJobs", StringComparison.OrdinalIgnoreCase) && allJobsBaseUrlEntry is not null)
         {
-            if (!TryParseIntList(allJobsTypesEntry?.Text, out var types) ||
-                !TryParseOptionalInt(allJobsSourceEntry?.Text, out var sourceId) ||
+            if (!TryParseOptionalInt(allJobsSourceEntry?.Text, out var sourceId) ||
                 !TryParseOptionalInt(allJobsDurationEntry?.Text, out var duration) ||
                 !TryParseInt(allJobsMaxPagesEntry?.Text, out var maxPages) || maxPages < 0)
             {
-                await DisplayAlertAsync("Check the profile", "AllJobs numeric fields must contain whole numbers separated by commas.", "OK");
+                await DisplayAlertAsync("Check the profile", "AllJobs numeric fields must contain whole numbers.", "OK");
                 return false;
             }
 
+            if (!TryParseIntList(allJobsPositionsEntry?.Text, out var positionsFromText))
+            {
+                await DisplayAlertAsync("Check the profile", "AllJobs position IDs must contain whole numbers separated by commas.", "OK");
+                return false;
+            }
+
+            ApplyAllJobsPositionIds(positionsFromText, syncEntry: false);
             var positions = SelectedAllJobsPositions();
             allJobsFilter = new AllJobsFilterOptions
             {
                 BaseUrl = allJobsBaseUrlEntry.Text?.Trim() ?? string.Empty,
                 Position = positions.FirstOrDefault(),
                 Positions = positions,
-                Types = types,
+                Types = SelectedAllJobsTypes(),
                 Source = sourceId,
                 Duration = duration,
                 Exclude = allJobsExcludeEntry?.Text?.Trim(),
-                Region = allJobsRegionEntry?.Text?.Trim(),
+                Region = BuildAllJobsRegionValue(),
                 MaxPages = maxPages
             };
         }
@@ -950,14 +998,37 @@ public partial class SourceProfilesPage : ContentPage
         allJobsPositionsSummary = new Label { TextColor = Colors.Gray, FontSize = 12 };
         Editor.Children.Add(allJobsPositionsSummary);
         UpdateAllJobsPositionsSummary();
-        allJobsTypesEntry = AddEntry("Employment type IDs", string.Join(", ", filter.Types));
-        AddKnownValuesHint("4 - Full-time.");
+        allJobsPositionsEntry = AddEntry("Position IDs", string.Join(", ", SelectedAllJobsPositions()));
+        allJobsPositionsEntry.TextChanged += OnAllJobsPositionsEntryTextChanged;
+        AddKnownValuesHint("Comma-separated AllJobs position IDs. This field stays in sync with the position selector.");
+        Editor.Children.Add(new Label { Text = "Employment types", FontAttributes = FontAttributes.Bold });
+        allJobsSelectedTypes.Clear();
+        allJobsSelectedTypes.UnionWith(filter.Types);
+        EnsureAllJobsFilterChoiceOptions(allJobsTypeOptions, allJobsSelectedTypes, "Type");
+        var chooseTypesButton = new Button { Text = "Choose employment types" };
+        chooseTypesButton.Clicked += OnChooseAllJobsTypesClicked;
+        Editor.Children.Add(chooseTypesButton);
+        allJobsTypesSummary = new Label { TextColor = Colors.Gray, FontSize = 12 };
+        Editor.Children.Add(allJobsTypesSummary);
+        UpdateAllJobsTypesSummary();
         allJobsSourceEntry = AddEntry("Source ID", filter.Source?.ToString() ?? string.Empty);
         allJobsDurationEntry = AddEntry("Duration", filter.Duration?.ToString() ?? string.Empty);
         AddKnownValuesHint("25 - Past 25 days.");
         allJobsExcludeEntry = AddEntry("Exclude phrase", filter.Exclude ?? string.Empty);
-        allJobsRegionEntry = AddEntry("Region", filter.Region ?? string.Empty);
-        AddKnownValuesHint("2 - Center; 6 - Hasharon.");
+        Editor.Children.Add(new Label { Text = "Regions", FontAttributes = FontAttributes.Bold });
+        allJobsSelectedRegions.Clear();
+        if (TryParseIntList(filter.Region, out var regions))
+        {
+            allJobsSelectedRegions.UnionWith(regions);
+        }
+
+        EnsureAllJobsFilterChoiceOptions(allJobsRegionOptions, allJobsSelectedRegions, "Region");
+        var chooseRegionsButton = new Button { Text = "Choose regions" };
+        chooseRegionsButton.Clicked += OnChooseAllJobsRegionsClicked;
+        Editor.Children.Add(chooseRegionsButton);
+        allJobsRegionsSummary = new Label { TextColor = Colors.Gray, FontSize = 12 };
+        Editor.Children.Add(allJobsRegionsSummary);
+        UpdateAllJobsRegionsSummary();
         allJobsMaxPagesEntry = AddEntry("Maximum pages", filter.MaxPages.ToString());
     }
 
@@ -1605,6 +1676,49 @@ public partial class SourceProfilesPage : ContentPage
     }
 
     private IReadOnlyList<int> SelectedAllJobsPositions() => allJobsSelectedPositions.OrderBy(id => id).ToList();
+    private IReadOnlyList<int> SelectedAllJobsTypes() => allJobsSelectedTypes.OrderBy(id => id).ToList();
+    private IReadOnlyList<int> SelectedAllJobsRegions() => allJobsSelectedRegions.OrderBy(id => id).ToList();
+    private string BuildAllJobsRegionValue() => string.Join(",", SelectedAllJobsRegions());
+
+    private void ApplyAllJobsPositionIds(IEnumerable<int> ids, bool syncEntry)
+    {
+        allJobsSelectedPositions.Clear();
+        allJobsSelectedPositions.UnionWith(ids);
+        EnsureAllJobsPositionOptions(allJobsSelectedPositions);
+        UpdateAllJobsPositionsSummary();
+        if (syncEntry)
+        {
+            SyncAllJobsPositionsEntry();
+        }
+    }
+
+    private void SyncAllJobsPositionsEntry()
+    {
+        if (allJobsPositionsEntry is null)
+        {
+            return;
+        }
+
+        isSyncingAllJobsPositionsEntry = true;
+        allJobsPositionsEntry.Text = string.Join(", ", SelectedAllJobsPositions());
+        isSyncingAllJobsPositionsEntry = false;
+    }
+
+    private void OnAllJobsPositionsEntryTextChanged(object? sender, TextChangedEventArgs e)
+    {
+        if (isSyncingAllJobsPositionsEntry)
+        {
+            return;
+        }
+
+        if (!TryParseIntList(e.NewTextValue, out var positions))
+        {
+            return;
+        }
+
+        ApplyAllJobsPositionIds(positions, syncEntry: false);
+        UpdateGeneratedUrlPreview();
+    }
 
     private void EnsureAllJobsPositionOptions(IEnumerable<int> selectedIds)
     {
@@ -1616,6 +1730,19 @@ public partial class SourceProfilesPage : ContentPage
             }
 
             allJobsPositionOptions.Add(new AllJobsPositionOption(new AllJobsPosition(id, $"Position {id}", "Custom")));
+        }
+    }
+
+    private static void EnsureAllJobsFilterChoiceOptions(List<AllJobsFilterChoiceOption> options, IEnumerable<int> selectedIds, string customGroup)
+    {
+        foreach (var id in selectedIds)
+        {
+            if (options.Any(option => option.Choice.Id == id))
+            {
+                continue;
+            }
+
+            options.Add(new AllJobsFilterChoiceOption(new AllJobsFilterChoice(id, $"{customGroup} {id}", "Custom")));
         }
     }
 
@@ -1673,6 +1800,7 @@ public partial class SourceProfilesPage : ContentPage
             allJobsSelectedPositions.Clear();
             allJobsSelectedPositions.UnionWith(allJobsPositionOptions.Where(option => option.IsSelected).Select(option => option.Position.Id));
             UpdateAllJobsPositionsSummary();
+            SyncAllJobsPositionsEntry();
             UpdateGeneratedUrlPreview();
         }
 
@@ -1685,6 +1813,128 @@ public partial class SourceProfilesPage : ContentPage
         if (allJobsPositionsSummary is not null)
         {
             allJobsPositionsSummary.Text = allJobsSelectedPositions.Count == 0 ? "No positions selected" : $"{allJobsSelectedPositions.Count} positions selected";
+        }
+    }
+
+    private void OnChooseAllJobsTypesClicked(object? sender, EventArgs e)
+    {
+        EnsureAllJobsFilterChoiceOptions(allJobsTypeOptions, allJobsSelectedTypes, "Type");
+        allJobsTypeDialogSelection = new HashSet<int>(allJobsSelectedTypes);
+        foreach (var option in allJobsTypeOptions)
+        {
+            option.IsSelected = allJobsTypeDialogSelection.Contains(option.Choice.Id);
+        }
+
+        AllJobsTypesList.ItemsSource = allJobsTypeOptions.OrderBy(option => option.Choice.Id).ToList();
+        AllJobsTypesDialog.IsVisible = true;
+    }
+
+    private void OnSelectAllAllJobsTypesClicked(object? sender, EventArgs e)
+    {
+        foreach (var option in allJobsTypeOptions)
+        {
+            option.IsSelected = true;
+        }
+
+        AllJobsTypesList.ItemsSource = allJobsTypeOptions.OrderBy(option => option.Choice.Id).ToList();
+    }
+
+    private void OnClearAllJobsTypesClicked(object? sender, EventArgs e)
+    {
+        foreach (var option in allJobsTypeOptions)
+        {
+            option.IsSelected = false;
+        }
+
+        AllJobsTypesList.ItemsSource = allJobsTypeOptions.OrderBy(option => option.Choice.Id).ToList();
+    }
+
+    private void OnCancelAllJobsTypesClicked(object? sender, EventArgs e)
+    {
+        allJobsTypeDialogSelection = null;
+        AllJobsTypesDialog.IsVisible = false;
+    }
+
+    private void OnDoneAllJobsTypesClicked(object? sender, EventArgs e)
+    {
+        if (allJobsTypeDialogSelection is not null)
+        {
+            allJobsSelectedTypes.Clear();
+            allJobsSelectedTypes.UnionWith(allJobsTypeOptions.Where(option => option.IsSelected).Select(option => option.Choice.Id));
+            UpdateAllJobsTypesSummary();
+            UpdateGeneratedUrlPreview();
+        }
+
+        allJobsTypeDialogSelection = null;
+        AllJobsTypesDialog.IsVisible = false;
+    }
+
+    private void UpdateAllJobsTypesSummary()
+    {
+        if (allJobsTypesSummary is not null)
+        {
+            allJobsTypesSummary.Text = allJobsSelectedTypes.Count == 0 ? "No employment types selected" : $"{allJobsSelectedTypes.Count} employment types selected";
+        }
+    }
+
+    private void OnChooseAllJobsRegionsClicked(object? sender, EventArgs e)
+    {
+        EnsureAllJobsFilterChoiceOptions(allJobsRegionOptions, allJobsSelectedRegions, "Region");
+        allJobsRegionDialogSelection = new HashSet<int>(allJobsSelectedRegions);
+        foreach (var option in allJobsRegionOptions)
+        {
+            option.IsSelected = allJobsRegionDialogSelection.Contains(option.Choice.Id);
+        }
+
+        AllJobsRegionsList.ItemsSource = allJobsRegionOptions.OrderBy(option => option.Choice.Id).ToList();
+        AllJobsRegionsDialog.IsVisible = true;
+    }
+
+    private void OnSelectAllAllJobsRegionsClicked(object? sender, EventArgs e)
+    {
+        foreach (var option in allJobsRegionOptions)
+        {
+            option.IsSelected = true;
+        }
+
+        AllJobsRegionsList.ItemsSource = allJobsRegionOptions.OrderBy(option => option.Choice.Id).ToList();
+    }
+
+    private void OnClearAllJobsRegionsClicked(object? sender, EventArgs e)
+    {
+        foreach (var option in allJobsRegionOptions)
+        {
+            option.IsSelected = false;
+        }
+
+        AllJobsRegionsList.ItemsSource = allJobsRegionOptions.OrderBy(option => option.Choice.Id).ToList();
+    }
+
+    private void OnCancelAllJobsRegionsClicked(object? sender, EventArgs e)
+    {
+        allJobsRegionDialogSelection = null;
+        AllJobsRegionsDialog.IsVisible = false;
+    }
+
+    private void OnDoneAllJobsRegionsClicked(object? sender, EventArgs e)
+    {
+        if (allJobsRegionDialogSelection is not null)
+        {
+            allJobsSelectedRegions.Clear();
+            allJobsSelectedRegions.UnionWith(allJobsRegionOptions.Where(option => option.IsSelected).Select(option => option.Choice.Id));
+            UpdateAllJobsRegionsSummary();
+            UpdateGeneratedUrlPreview();
+        }
+
+        allJobsRegionDialogSelection = null;
+        AllJobsRegionsDialog.IsVisible = false;
+    }
+
+    private void UpdateAllJobsRegionsSummary()
+    {
+        if (allJobsRegionsSummary is not null)
+        {
+            allJobsRegionsSummary.Text = allJobsSelectedRegions.Count == 0 ? "No regions selected" : $"{allJobsSelectedRegions.Count} regions selected";
         }
     }
 
@@ -1824,6 +2074,13 @@ public partial class SourceProfilesPage : ContentPage
     private sealed class AllJobsPositionGroup(string group, IEnumerable<AllJobsPositionOption> positions) : List<AllJobsPositionOption>(positions)
     {
         public string Group { get; } = group;
+    }
+    private sealed record AllJobsFilterChoice(int Id, string Name, string Group);
+    private sealed class AllJobsFilterChoiceOption(AllJobsFilterChoice choice)
+    {
+        public AllJobsFilterChoice Choice { get; } = choice;
+        public string DisplayName => $"{Choice.Name} ({Choice.Id})";
+        public bool IsSelected { get; set; }
     }
     private sealed record ProfileListItem(string Name, string Adapter);
 }
