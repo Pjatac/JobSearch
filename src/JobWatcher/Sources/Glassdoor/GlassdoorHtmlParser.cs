@@ -360,9 +360,7 @@ public sealed partial class GlassdoorHtmlParser
 
     private static string NormalizeUrl(string rawUrl)
     {
-        return Uri.TryCreate(WebUtility.HtmlDecode(rawUrl), UriKind.Absolute, out var absolute)
-            ? absolute.ToString()
-            : new Uri(BaseUri, WebUtility.HtmlDecode(rawUrl)).ToString();
+        return JobWatcher.Sources.SourceUrl.ToAbsoluteHttpUrl(BaseUri, WebUtility.HtmlDecode(rawUrl));
     }
 
     private static string? ExtractExternalId(string? value)

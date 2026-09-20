@@ -255,9 +255,7 @@ public sealed partial class JobKarovJsonLdParser
 
     private static string NormalizeUrl(string rawUrl)
     {
-        return Uri.TryCreate(rawUrl, UriKind.Absolute, out var absolute)
-            ? absolute.ToString()
-            : new Uri(BaseUri, rawUrl).ToString();
+        return JobWatcher.Sources.SourceUrl.ToAbsoluteHttpUrl(BaseUri, rawUrl);
     }
 
     private static string? ExtractExternalId(string url)

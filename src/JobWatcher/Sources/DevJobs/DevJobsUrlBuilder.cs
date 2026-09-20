@@ -65,7 +65,7 @@ public static class DevJobsUrlBuilder
             throw new InvalidOperationException("DevJobs search URL is required.");
         }
 
-        var searchUri = Uri.TryCreate(filter.SearchUrl, UriKind.Absolute, out var absolute)
+        var searchUri = JobWatcher.Sources.SourceUrl.TryCreateHttpAbsolute(filter.SearchUrl, out var absolute)
             ? absolute
             : new Uri(new Uri(baseUri.ToString().TrimEnd('/') + "/"), filter.SearchUrl.TrimStart('/'));
         var builder = new UriBuilder(searchUri);

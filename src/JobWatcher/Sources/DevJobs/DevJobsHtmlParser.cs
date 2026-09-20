@@ -196,9 +196,7 @@ public sealed partial class DevJobsHtmlParser
 
     private static DateOnly? ParseDate(string? value) => DateOnly.TryParse(CleanText(value), CultureInfo.InvariantCulture, DateTimeStyles.AllowWhiteSpaces, out var date) ? date : null;
 
-    private static string NormalizeUrl(string href) => Uri.TryCreate(href, UriKind.Absolute, out var absolute)
-        ? absolute.ToString()
-        : new Uri(BaseUri, WebUtility.HtmlDecode(href)).ToString();
+    private static string NormalizeUrl(string href) => JobWatcher.Sources.SourceUrl.ToAbsoluteHttpUrl(BaseUri, WebUtility.HtmlDecode(href));
 
     private static string? ExtractExternalId(string url)
     {
