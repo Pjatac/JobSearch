@@ -5,12 +5,14 @@
 
     <ScrollView>
         <Grid Padding="24" RowDefinitions="Auto,Auto,Auto,*" RowSpacing="20" MaximumWidthRequest="1120">
-            <Grid ColumnDefinitions="*,Auto">
+            <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8">
                 <VerticalStackLayout Spacing="4">
                     <Label Text="Job Watcher" FontAttributes="Bold" FontSize="28" />
                     <Label Text="Configured searches and the latest collection state" TextColor="{StaticResource Gray500}" />
                 </VerticalStackLayout>
-                <Button x:Name="RunButton" Grid.Column="1" Text="Run" Clicked="OnRunClicked" />
+                <Button Grid.Column="1" Text="{Binding RunButtonText}" IsEnabled="{Binding IsRunEnabled}" Clicked="OnRunClicked" />
+                <Button Grid.Column="2" Text="{Binding PauseButtonText}" IsEnabled="{Binding IsPauseEnabled}" Clicked="OnPauseClicked" />
+                <Button Grid.Column="3" Text="Stop" IsEnabled="{Binding IsStopEnabled}" Clicked="OnStopClicked" />
             </Grid>
 
             <Grid Grid.Row="1" ColumnDefinitions="*,*" ColumnSpacing="16">

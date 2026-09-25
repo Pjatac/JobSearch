@@ -19,9 +19,10 @@ public partial class MainPage : ContentPage
 
     private async void OnRunClicked(object? sender, EventArgs e)
     {
-        var task = viewModel.ToggleRunAsync();
-        RunButton.Text = viewModel.RunButtonText;
-        await task;
-        RunButton.Text = viewModel.RunButtonText;
+        await viewModel.StartRunAsync();
     }
+
+    private void OnPauseClicked(object? sender, EventArgs e) => viewModel.TogglePause();
+
+    private void OnStopClicked(object? sender, EventArgs e) => viewModel.StopRun();
 }

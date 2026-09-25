@@ -1,6 +1,7 @@
 using JobWatcher.Configuration;
 using JobWatcher.Http;
 using JobWatcher.Models;
+using JobWatcher.Services;
 using JobWatcher.Utilities;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -22,6 +23,7 @@ public sealed class GlassdoorSource(
     GlassdoorHtmlParser parser,
     GlassdoorApiParser apiParser,
     IOptions<JobWatcherOptions> watcherOptions,
+    IRunPauseController pauseController,
     ILogger<GlassdoorSource> logger) : IJobSource
 {
     public const string HttpClientName = "Glassdoor";
@@ -60,6 +62,8 @@ public sealed class GlassdoorSource(
 
             foreach (var url in urls)
             {
+                await pauseController.WaitIfPausedAsync(cancellationToken);
+
                 var search = GlassdoorSearchUrl.TryParse(url);
                 if (search is null)
                 {
@@ -81,6 +85,7 @@ public sealed class GlassdoorSource(
 
                 while (pagesFetched < maxPages)
                 {
+                    await pauseController.WaitIfPausedAsync(cancellationToken);
                     await Pace(cancellationToken);
 
                     logger.LogInformation(
@@ -235,6 +240,8 @@ public sealed class GlassdoorSource(
 
         foreach (var vacancy in vacancies)
         {
+            await pauseController.WaitIfPausedAsync(cancellationToken);
+
             if (detailCount >= maxDetails)
             {
                 enriched.Add(vacancy);
@@ -331,6 +338,7 @@ public sealed class GlassdoorSource(
         CancellationToken cancellationToken)
     {
         await pace(cancellationToken);
+        await pauseController.WaitIfPausedAsync(cancellationToken);
         logger.LogInformation("Fetching source {Source} search page from {Url}", options.Name, url);
 
         using var response = await HttpRequestRetryPolicy.GetAsync(client, url, logger, options.Name, cancellationToken);

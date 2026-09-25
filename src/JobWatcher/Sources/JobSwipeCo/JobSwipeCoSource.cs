@@ -1,6 +1,7 @@
 using JobWatcher.Configuration;
 using JobWatcher.Http;
 using JobWatcher.Models;
+using JobWatcher.Services;
 using JobWatcher.Utilities;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -11,6 +12,7 @@ public sealed class JobSwipeCoSource(
     IHttpClientFactory httpClientFactory,
     JobSwipeCoJsonLdParser parser,
     IOptions<JobWatcherOptions> watcherOptions,
+    IRunPauseController pauseController,
     ILogger<JobSwipeCoSource> logger) : IJobSource
 {
     public const string HttpClientName = "JobSwipeCo";
@@ -37,6 +39,8 @@ public sealed class JobSwipeCoSource(
 
             foreach (var searchUrl in options.JobSwipeCoFilter.SearchUrls)
             {
+                await pauseController.WaitIfPausedAsync(cancellationToken);
+
                 logger.LogInformation("Fetching source {Source} search page from {Url}", options.Name, searchUrl);
                 using var response = await HttpRequestRetryPolicy.GetAsync(client, searchUrl, logger, options.Name, cancellationToken);
                 var html = await response.Content.ReadAsStringAsync(cancellationToken);
@@ -64,6 +68,8 @@ public sealed class JobSwipeCoSource(
 
             foreach (var jobUrl in jobUrls)
             {
+                await pauseController.WaitIfPausedAsync(cancellationToken);
+
                 logger.LogInformation("Fetching source {Source} job detail from {Url}", options.Name, jobUrl);
                 using var response = await HttpRequestRetryPolicy.GetAsync(client, jobUrl, logger, options.Name, cancellationToken);
                 var html = await response.Content.ReadAsStringAsync(cancellationToken);

@@ -12,6 +12,7 @@ using JobWatcher.Sources.JobKarov;
 using JobWatcher.Sources.JobSwipeCo;
 using JobWatcher.Sources.SecretTelAviv;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -42,6 +43,7 @@ public static class JobWatcherServiceCollectionExtensions
         services.AddSingleton<JobClassificationService>();
         services.AddSingleton<DuplicateCandidateService>();
         services.AddSingleton<OutputDuplicateService>();
+        services.TryAddSingleton<IRunPauseController, NoOpRunPauseController>();
         services.AddSingleton<JobWatcherRunner>();
 
         AddHtmlClient(services, JobKarovSource.HttpClientName, "JobWatcher/1.0 (+https://localhost/job-watcher; contact=local)", false, false);

@@ -1,6 +1,7 @@
 using JobWatcher.Configuration;
 using JobWatcher.Http;
 using JobWatcher.Models;
+using JobWatcher.Services;
 using JobWatcher.Utilities;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -11,6 +12,7 @@ public sealed class SecretTelAvivSource(
     IHttpClientFactory httpClientFactory,
     SecretTelAvivHtmlParser parser,
     IOptions<JobWatcherOptions> watcherOptions,
+    IRunPauseController pauseController,
     ILogger<SecretTelAvivSource> logger) : IJobSource
 {
     public const string HttpClientName = "SecretTelAviv";
@@ -31,6 +33,7 @@ public sealed class SecretTelAvivSource(
                 : SecretTelAvivUrlBuilder.Build(options.SecretTelAvivFilter!);
             using var client = httpClientFactory.CreateClient(HttpClientName);
             client.Timeout = TimeSpan.FromSeconds(Math.Max(1, watcherOptions.Value.RequestTimeoutSeconds));
+            await pauseController.WaitIfPausedAsync(cancellationToken);
             logger.LogInformation("Fetching source {Source} from {Url}", options.Name, url);
             using var response = await HttpRequestRetryPolicy.GetAsync(client, url, logger, options.Name, cancellationToken);
             var html = await response.Content.ReadAsStringAsync(cancellationToken);
@@ -47,6 +50,8 @@ public sealed class SecretTelAvivSource(
             var maximumDetails = Math.Max(0, options.SecretTelAvivFilter?.MaxDetailsPerSearch ?? 0);
             foreach (var listedVacancy in parseResult.Vacancies.Take(maximumDetails))
             {
+                await pauseController.WaitIfPausedAsync(cancellationToken);
+
                 using var detailResponse = await HttpRequestRetryPolicy.GetAsync(client, listedVacancy.Url, logger, options.Name, cancellationToken);
                 if (!detailResponse.IsSuccessStatusCode)
                 {

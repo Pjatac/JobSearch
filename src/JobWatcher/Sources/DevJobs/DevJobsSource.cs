@@ -1,6 +1,7 @@
 using JobWatcher.Configuration;
 using JobWatcher.Http;
 using JobWatcher.Models;
+using JobWatcher.Services;
 using JobWatcher.Utilities;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -11,6 +12,7 @@ public sealed class DevJobsSource(
     IHttpClientFactory httpClientFactory,
     DevJobsHtmlParser parser,
     IOptions<JobWatcherOptions> watcherOptions,
+    IRunPauseController pauseController,
     ILogger<DevJobsSource> logger) : IJobSource
 {
     public const string HttpClientName = "DevJobs";
@@ -40,6 +42,8 @@ public sealed class DevJobsSource(
                 : DevJobsUrlBuilder.GetSearchScopes(filter);
             foreach (var scope in scopes)
             {
+                await pauseController.WaitIfPausedAsync(cancellationToken);
+
                 if (!string.IsNullOrWhiteSpace(filter.NameFilter))
                 {
                     var initialUrl = !string.IsNullOrWhiteSpace(options.Url) ? options.Url : DevJobsUrlBuilder.Build(filter, 1, scope);
@@ -79,6 +83,8 @@ public sealed class DevJobsSource(
 
                     for (var page = 1; page <= maxPages; page++)
                     {
+                        await pauseController.WaitIfPausedAsync(cancellationToken);
+
                         var search = parser.ParseSearch(latestSearchHtml, options.Name, collectedAtUtc);
                         warnings.AddRange(search.Warnings);
                         jobCardCount += search.JobCardCount;
@@ -116,6 +122,8 @@ public sealed class DevJobsSource(
 
                 for (var page = 1; page <= maxPages; page++)
                 {
+                    await pauseController.WaitIfPausedAsync(cancellationToken);
+
                     var searchUrl = !string.IsNullOrWhiteSpace(options.Url) ? options.Url : DevJobsUrlBuilder.Build(filter, page, scope);
                     logger.LogInformation("Fetching DevJobs source {Source}, page {Page} from {Url}", options.Name, page, searchUrl);
                     using var response = await HttpRequestRetryPolicy.GetAsync(client, searchUrl, logger, options.Name, cancellationToken);
@@ -165,6 +173,8 @@ public sealed class DevJobsSource(
 
         foreach (var listedVacancy in pageVacancies.Take(maxDetails))
         {
+            await pauseController.WaitIfPausedAsync(cancellationToken);
+
             var vacancy = await LoadDetailsAsync(client, listedVacancy, sourceName, collectedAtUtc, warnings, cancellationToken);
             vacancies[vacancy.ExternalId] = vacancy;
         }

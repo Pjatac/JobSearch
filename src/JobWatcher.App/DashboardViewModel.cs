@@ -5,7 +5,7 @@ using JobWatcher.Configuration;
 
 namespace JobWatcher.App;
 
-public sealed class DashboardViewModel(JobWatcherSettingsStore settingsStore, ManualRunService manualRunService, SourceProfileValidator profileValidator) : INotifyPropertyChanged
+public sealed class DashboardViewModel(JobWatcherSettingsStore settingsStore, ManualRunService manualRunService, SourceProfileValidator profileValidator, RunPauseController pauseController) : INotifyPropertyChanged
 {
     private string status = "Loading configuration...";
     private string classificationSummary = string.Empty;
@@ -13,6 +13,7 @@ public sealed class DashboardViewModel(JobWatcherSettingsStore settingsStore, Ma
     private JobWatcherOptions? options;
     private CancellationTokenSource? runCancellation;
     private bool isRunning;
+    private bool isPaused;
 
     public ObservableCollection<SourceProfileSummary> Sources { get; } = [];
     public ObservableCollection<SourceRunStatus> RunStatuses { get; } = [];
@@ -43,11 +44,30 @@ public sealed class DashboardViewModel(JobWatcherSettingsStore settingsStore, Ma
             if (SetField(ref isRunning, value))
             {
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(RunButtonText)));
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsRunEnabled)));
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsPauseEnabled)));
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsStopEnabled)));
             }
         }
     }
 
-    public string RunButtonText => IsRunning ? "Cancel" : "Run";
+    public bool IsPaused
+    {
+        get => isPaused;
+        private set
+        {
+            if (SetField(ref isPaused, value))
+            {
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(PauseButtonText)));
+            }
+        }
+    }
+
+    public bool IsRunEnabled => !IsRunning;
+    public bool IsPauseEnabled => IsRunning;
+    public bool IsStopEnabled => IsRunning;
+    public string RunButtonText => "Run";
+    public string PauseButtonText => IsPaused ? "Resume" : "Pause";
 
     public async Task InitializeAsync()
     {
@@ -72,12 +92,10 @@ public sealed class DashboardViewModel(JobWatcherSettingsStore settingsStore, Ma
         }
     }
 
-    public async Task ToggleRunAsync()
+    public async Task StartRunAsync()
     {
         if (IsRunning)
         {
-            runCancellation?.Cancel();
-            Status = "Cancelling run...";
             return;
         }
 
@@ -100,6 +118,7 @@ public sealed class DashboardViewModel(JobWatcherSettingsStore settingsStore, Ma
         }
 
         runCancellation = new CancellationTokenSource();
+        IsPaused = false;
         IsRunning = true;
         RunStatuses.Clear();
         try
@@ -122,10 +141,46 @@ public sealed class DashboardViewModel(JobWatcherSettingsStore settingsStore, Ma
         }
         finally
         {
+            pauseController.Reset();
+            IsPaused = false;
             runCancellation.Dispose();
             runCancellation = null;
             IsRunning = false;
         }
+    }
+
+    public void TogglePause()
+    {
+        if (!IsRunning)
+        {
+            return;
+        }
+
+        if (IsPaused)
+        {
+            pauseController.Resume();
+            IsPaused = false;
+            Status = "Run resumed";
+        }
+        else
+        {
+            pauseController.Pause();
+            IsPaused = true;
+            Status = "Run paused. The current request will finish first.";
+        }
+    }
+
+    public void StopRun()
+    {
+        if (!IsRunning)
+        {
+            return;
+        }
+
+        pauseController.Reset();
+        runCancellation?.Cancel();
+        IsPaused = false;
+        Status = "Stopping run...";
     }
 
     private async Task<JobWatcherOptions> LoadSettingsAsync()
