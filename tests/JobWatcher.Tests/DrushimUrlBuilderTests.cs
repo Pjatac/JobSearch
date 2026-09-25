@@ -105,6 +105,32 @@ public sealed class DrushimUrlBuilderTests
     }
 
     [Fact]
+    public void BuildsDefaultSoftwareRolesUrlWithSearchTerm()
+    {
+        var options = new JobSourceOptions
+        {
+            Name = "Drushim-SoftwareRoles",
+            DrushimFilter = new DrushimFilterOptions
+            {
+                Query = "backend",
+                CategoryId = 6,
+                CategoryIds = [6],
+                SubcategoryIds = [69, 183, 372, 380, 616],
+                AreaIds = [1, 2, 5, 9, 10, 11, 12, 13, 14],
+                Scopes = [1, 6],
+                GeoLexId = 539071,
+                IncludeAreaAround = true,
+                Experience = 3,
+                Range = 3
+            }
+        };
+
+        var url = DrushimUrlBuilder.Build(options);
+
+        Assert.Equal("https://www.drushim.co.il/jobs/cat6/area/1-2-5-9-10-11-12-13-14/?searchterm=backend&scope=1-6&geolexid=539071&isaa=true&ssaen=3&range=3", url);
+    }
+
+    [Fact]
     public void BuildsSubcategoryAreaUrl()
     {
         var options = new JobSourceOptions
