@@ -2,6 +2,7 @@ using System.Text;
 using JobWatcher.Configuration;
 using JobWatcher.Http;
 using JobWatcher.Models;
+using JobWatcher.Services;
 using JobWatcher.Utilities;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -12,6 +13,7 @@ public sealed class AllJobsSource(
     IHttpClientFactory httpClientFactory,
     AllJobsHtmlParser parser,
     IOptions<JobWatcherOptions> watcherOptions,
+    IRunPauseController pauseController,
     ILogger<AllJobsSource> logger) : IJobSource
 {
     public const string HttpClientName = "AllJobs";
@@ -35,11 +37,15 @@ public sealed class AllJobsSource(
 
             foreach (var positionId in positionSearches)
             {
+                await pauseController.WaitIfPausedAsync(cancellationToken);
+
                 int? totalPages = null;
                 int? positionTotalJobs = null;
 
                 for (var page = 1; page <= Math.Min(totalPages ?? maxPages, maxPages); page++)
                 {
+                    await pauseController.WaitIfPausedAsync(cancellationToken);
+
                     var url = AllJobsUrlBuilder.Build(options, page, positionId);
                     logger.LogInformation("Fetching source {Source}, position {PositionId}, page {Page} from {Url}", options.Name, positionId, page, url);
                     using var response = await HttpRequestRetryPolicy.GetAsync(client, url, logger, options.Name, cancellationToken);

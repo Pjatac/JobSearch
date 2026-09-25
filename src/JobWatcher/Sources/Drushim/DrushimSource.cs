@@ -2,6 +2,7 @@ using System.Text;
 using JobWatcher.Configuration;
 using JobWatcher.Http;
 using JobWatcher.Models;
+using JobWatcher.Services;
 using JobWatcher.Utilities;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -12,6 +13,7 @@ public sealed class DrushimSource(
     IHttpClientFactory httpClientFactory,
     DrushimHtmlParser parser,
     IOptions<JobWatcherOptions> watcherOptions,
+    IRunPauseController pauseController,
     ILogger<DrushimSource> logger) : IJobSource
 {
     public const string HttpClientName = "Drushim";
@@ -30,6 +32,8 @@ public sealed class DrushimSource(
             string? lastHtml = null;
             foreach (var request in BuildRequests(options))
             {
+                await pauseController.WaitIfPausedAsync(cancellationToken);
+
                 if (request.CategoryId is null)
                 {
                     logger.LogInformation("Fetching source {Source} from {Url}", options.Name, request.Url);
@@ -76,6 +80,8 @@ public sealed class DrushimSource(
             var listedVacancies = vacancies.Values.OrderBy(v => v.ExternalId, StringComparer.OrdinalIgnoreCase).ToList();
             foreach (var listedVacancy in listedVacancies.Take(maximumDetails))
             {
+                await pauseController.WaitIfPausedAsync(cancellationToken);
+
                 var detail = await LoadDetailsAsync(client, listedVacancy, options.Name, collectedAtUtc, warnings, cancellationToken);
                 if (detail is not null)
                 {

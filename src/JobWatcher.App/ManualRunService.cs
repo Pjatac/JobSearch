@@ -6,7 +6,7 @@ using Microsoft.Extensions.Options;
 
 namespace JobWatcher.App;
 
-public sealed class ManualRunService(RunStateService runState)
+public sealed class ManualRunService(RunStateService runState, RunPauseController pauseController)
 {
     public async Task<int> RunAsync(JobWatcherOptions settings, Action<RunProgressUpdate> onProgress, CancellationToken cancellationToken)
     {
@@ -29,6 +29,7 @@ public sealed class ManualRunService(RunStateService runState)
         });
         services.AddSingleton<IOptions<JobWatcherOptions>>(Options.Create(options));
         services.AddSingleton<IJobWatcherRunObserver>(new ProgressObserver(onProgress));
+        services.AddSingleton<IRunPauseController>(pauseController);
         services.AddJobWatcherCollector();
         await using var provider = services.BuildServiceProvider();
         var logger = provider.GetRequiredService<ILogger<ManualRunService>>();
@@ -40,6 +41,7 @@ public sealed class ManualRunService(RunStateService runState)
 
         try
         {
+            pauseController.Reset();
             var exitCode = await provider.GetRequiredService<JobWatcherRunner>().RunAsync(cancellationToken);
             logger.LogInformation("Manual run finished with exit code {ExitCode}", exitCode);
             runState.NotifyRunCompleted();
@@ -47,11 +49,13 @@ public sealed class ManualRunService(RunStateService runState)
         }
         catch (OperationCanceledException)
         {
+            pauseController.Reset();
             logger.LogWarning("Manual run was cancelled");
             throw;
         }
         catch (Exception exception)
         {
+            pauseController.Reset();
             logger.LogError(exception, "Manual run stopped with an unhandled exception");
             throw;
         }

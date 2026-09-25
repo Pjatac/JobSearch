@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 
 using JobWatcher.Configuration;
+using JobWatcher.Services;
 
 namespace JobWatcher.App;
 
@@ -24,6 +25,8 @@ public static class MauiProgram
 		builder.Services.AddSingleton<JobWatcherSettingsStore>();
 		builder.Services.AddSingleton<SourceProfileValidator>();
 		builder.Services.AddSingleton<RunStateService>();
+		builder.Services.AddSingleton<RunPauseController>();
+		builder.Services.AddSingleton<IRunPauseController>(provider => provider.GetRequiredService<RunPauseController>());
 		builder.Services.AddSingleton<ManualRunService>();
 		builder.Services.AddSingleton<DashboardViewModel>();
 		builder.Services.AddSingleton<MainPage>();

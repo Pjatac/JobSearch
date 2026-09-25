@@ -342,6 +342,10 @@ the source output.
 dotnet run --project src/JobWatcher.Cli
 ```
 
+In the MAUI app, `Run` starts collection, `Pause` waits before the next source/page/detail request,
+and `Stop` cancels the run. Pause is checkpoint-based: it does not interrupt an HTTP request that
+is already in flight.
+
 After a successful first run:
 
 ```text

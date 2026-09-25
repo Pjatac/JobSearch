@@ -1,6 +1,7 @@
 using JobWatcher.Configuration;
 using JobWatcher.Http;
 using JobWatcher.Models;
+using JobWatcher.Services;
 using JobWatcher.Utilities;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -12,6 +13,7 @@ public sealed class JobKarovSource(
     IHttpClientFactory httpClientFactory,
     JobKarovJsonLdParser parser,
     IOptions<JobWatcherOptions> watcherOptions,
+    IRunPauseController pauseController,
     ILogger<JobKarovSource> logger) : IJobSource
 {
     public const string HttpClientName = "JobKarov";
@@ -45,6 +47,8 @@ public sealed class JobKarovSource(
 
             foreach (var speciality in specialities)
             {
+                await pauseController.WaitIfPausedAsync(cancellationToken);
+
                 var url = JobKarovUrlBuilder.Build(options, speciality);
                 logger.LogInformation("Fetching JobKarov source {Source}, speciality {Speciality} from {Url}", options.Name, speciality, url);
                 using var response = await HttpRequestRetryPolicy.GetAsync(client, url, logger, options.Name, cancellationToken);

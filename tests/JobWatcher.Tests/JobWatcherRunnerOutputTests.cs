@@ -32,6 +32,7 @@ public sealed class JobWatcherRunnerOutputTests
             new JobClassificationService(options),
             new DuplicateCandidateService(),
             new OutputDuplicateService(),
+            new NoOpRunPauseController(),
             NullLogger<JobWatcherRunner>.Instance);
 
         var exitCode = await runner.RunAsync(CancellationToken.None);
@@ -72,6 +73,7 @@ public sealed class JobWatcherRunnerOutputTests
             new JobClassificationService(options),
             new DuplicateCandidateService(),
             new OutputDuplicateService(),
+            new NoOpRunPauseController(),
             NullLogger<JobWatcherRunner>.Instance);
 
         var exitCode = await runner.RunAsync(CancellationToken.None);
@@ -172,6 +174,7 @@ public sealed class JobWatcherRunnerOutputTests
             new JobClassificationService(options),
             new DuplicateCandidateService(),
             new OutputDuplicateService(),
+            new NoOpRunPauseController(),
             NullLogger<JobWatcherRunner>.Instance);
 
         Assert.Equal(0, await runner.RunAsync(CancellationToken.None));
@@ -417,6 +420,7 @@ public sealed class JobWatcherRunnerOutputTests
             new JobClassificationService(options),
             new DuplicateCandidateService(),
             new OutputDuplicateService(),
+            new NoOpRunPauseController(),
             NullLogger<JobWatcherRunner>.Instance,
             [new RecordingObserver(updates)]);
 
@@ -428,10 +432,43 @@ public sealed class JobWatcherRunnerOutputTests
         Assert.Equal("cancelled", cancelled.Status);
     }
 
+    [Fact]
+    public async Task RunWaitsAtPauseCheckpointBeforeNextSource()
+    {
+        using var temp = new TempDirectory();
+        var pauseController = new BlockingPauseController(blockOnCall: 2);
+        var options = Options.Create(new JobWatcherOptions
+        {
+            DataDirectory = temp.Path,
+            Sources =
+            [
+                new JobSourceOptions { Name = "First", Adapter = "First", Url = "https://example.test/first" },
+                new JobSourceOptions { Name = "Second", Adapter = "Second", Url = "https://example.test/second" }
+            ]
+        });
+        var runner = CreateRunner(
+            options,
+            [
+                new StaticSource("First", Vacancy("first")),
+                new StaticSource("Second", Vacancy("second"))
+            ],
+            pauseController: pauseController);
+
+        var runTask = runner.RunAsync(CancellationToken.None);
+
+        await pauseController.BlockReached.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.False(runTask.IsCompleted);
+
+        pauseController.Resume();
+
+        Assert.Equal(0, await runTask.WaitAsync(TimeSpan.FromSeconds(2)));
+    }
+
     private static JobWatcherRunner CreateRunner(
         IOptions<JobWatcherOptions> options,
         IEnumerable<IJobSource> sources,
-        ISnapshotStore? snapshotStore = null)
+        ISnapshotStore? snapshotStore = null,
+        IRunPauseController? pauseController = null)
     {
         return new JobWatcherRunner(
             options,
@@ -441,6 +478,7 @@ public sealed class JobWatcherRunnerOutputTests
             new JobClassificationService(options),
             new DuplicateCandidateService(),
             new OutputDuplicateService(),
+            pauseController ?? new NoOpRunPauseController(),
             NullLogger<JobWatcherRunner>.Instance);
     }
 
@@ -571,6 +609,26 @@ public sealed class JobWatcherRunnerOutputTests
         {
             updates.Add(sourceOutput);
         }
+    }
+
+    private sealed class BlockingPauseController(int blockOnCall) : IRunPauseController
+    {
+        private readonly TaskCompletionSource release = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private int calls;
+
+        public bool IsPaused => Volatile.Read(ref calls) >= blockOnCall && !release.Task.IsCompleted;
+        public TaskCompletionSource BlockReached { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public async Task WaitIfPausedAsync(CancellationToken cancellationToken)
+        {
+            if (Interlocked.Increment(ref calls) == blockOnCall)
+            {
+                BlockReached.TrySetResult();
+                await release.Task.WaitAsync(cancellationToken);
+            }
+        }
+
+        public void Resume() => release.TrySetResult();
     }
 
     private sealed class TempDirectory : IDisposable

@@ -17,6 +17,7 @@ public sealed class JobWatcherRunner(
     JobClassificationService classificationService,
     DuplicateCandidateService duplicateCandidateService,
     OutputDuplicateService outputDuplicateService,
+    IRunPauseController pauseController,
     ILogger<JobWatcherRunner> logger,
     IEnumerable<IJobWatcherRunObserver>? observers = null)
 {
@@ -42,6 +43,8 @@ public sealed class JobWatcherRunner(
 
         foreach (var sourceOptions in options.Value.Sources)
         {
+            await pauseController.WaitIfPausedAsync(cancellationToken);
+
             retainedSnapshotSources.Add(sourceOptions.Name);
 
             if (!sourceOptions.Enabled)

@@ -44,6 +44,7 @@ builder.Services.AddSingleton<JobComparisonService>();
 builder.Services.AddSingleton<JobClassificationService>();
 builder.Services.AddSingleton<DuplicateCandidateService>();
 builder.Services.AddSingleton<OutputDuplicateService>();
+builder.Services.AddSingleton<IRunPauseController, NoOpRunPauseController>();
 builder.Services.AddSingleton<JobWatcherRunner>();
 
 builder.Services
