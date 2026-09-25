@@ -7,8 +7,12 @@ namespace JobWatcher.App;
 
 public partial class ResultsPage : ContentPage
 {
+    private const int InitialVisibleJobs = 100;
+    private const int VisibleJobsIncrement = 100;
     private readonly JobWatcherSettingsStore settingsStore;
     private RunOutput? output;
+    private List<ResultItem> filteredItems = [];
+    private int visibleJobCount = InitialVisibleJobs;
     private string detailsClipboardText = string.Empty;
 
     public ResultsPage(RunStateService runState, JobWatcherSettingsStore settingsStore)
@@ -34,9 +38,49 @@ public partial class ResultsPage : ContentPage
 
     private void OnRefreshClicked(object? sender, EventArgs e) => LoadOutput();
     private void OnViewModeChanged(object? sender, EventArgs e) => LoadOutput();
-    private void OnFilterChanged(object? sender, EventArgs e) => ShowJobs();
-    private void OnFilterChanged(object? sender, TextChangedEventArgs e) => ShowJobs();
-    private void OnFilterChanged(object? sender, ToggledEventArgs e) => ShowJobs();
+    private void OnFilterChanged(object? sender, EventArgs e) => ResetVisibleJobsAndShow();
+    private void OnFilterChanged(object? sender, TextChangedEventArgs e) => ResetVisibleJobsAndShow();
+    private void OnFilterChanged(object? sender, ToggledEventArgs e) => ResetVisibleJobsAndShow();
+
+    private void OnLoadMoreClicked(object? sender, EventArgs e)
+    {
+        visibleJobCount += VisibleJobsIncrement;
+        ShowVisibleJobs();
+    }
+
+    private async void OnClearHistoryClicked(object? sender, EventArgs e)
+    {
+        var confirmed = await DisplayAlertAsync(
+            "Clear collection history",
+            "Remove saved snapshots and result output? Settings, Glassdoor session, and diagnostics are kept. The next successful run will treat current vacancies as new.",
+            "Clear history",
+            "Cancel");
+        if (!confirmed)
+        {
+            return;
+        }
+
+        try
+        {
+            var dataDirectory = Path.Combine(FileSystem.AppDataDirectory, "data");
+            DeleteDirectoryIfExists(Path.Combine(dataDirectory, "snapshots"));
+            DeleteDirectoryIfExists(Path.Combine(dataDirectory, "output"));
+            LoadOutput();
+            await DisplayAlertAsync("History cleared", "Collection history was removed. Run collection to build a fresh baseline.", "OK");
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            await DisplayAlertAsync("Could not clear history", ex.Message, "OK");
+        }
+    }
+
+    private static void DeleteDirectoryIfExists(string path)
+    {
+        if (Directory.Exists(path))
+        {
+            Directory.Delete(path, recursive: true);
+        }
+    }
 
     private async void OnOpenClicked(object? sender, EventArgs e)
     {
@@ -107,13 +151,20 @@ public partial class ResultsPage : ContentPage
         if (!File.Exists(path))
         {
             output = null;
+            filteredItems = [];
+            visibleJobCount = InitialVisibleJobs;
             StatusLabel.Text = "No completed run yet";
             UpdatedLabel.Text = string.Empty;
             SummaryLabel.Text = string.Empty;
+            SourcePicker.ItemsSource = new List<string> { "All" };
+            SourcePicker.SelectedIndex = 0;
             Jobs.ItemsSource = Array.Empty<ResultItem>();
             Jobs.IsVisible = false;
+            LoadMoreButton.IsVisible = false;
             EmptyState.IsVisible = true;
             EmptyStateDetailLabel.Text = "Run the collection to see vacancies here.";
+            DetailsOverlay.IsVisible = false;
+            detailsClipboardText = string.Empty;
             return;
         }
 
@@ -135,6 +186,12 @@ public partial class ResultsPage : ContentPage
         SourcePicker.ItemsSource = sources;
         SourcePicker.SelectedIndex = Math.Max(0, sources.FindIndex(source => string.Equals(source, selectedSource, StringComparison.OrdinalIgnoreCase)));
         SummaryLabel.Text = $"{output.GeneratedAtUtc.LocalDateTime:g} | {output.TotalNewJobs} new jobs";
+        ResetVisibleJobsAndShow();
+    }
+
+    private void ResetVisibleJobsAndShow()
+    {
+        visibleJobCount = InitialVisibleJobs;
         ShowJobs();
     }
 
@@ -269,11 +326,8 @@ public partial class ResultsPage : ContentPage
             "Company" => jobs.OrderBy(job => job.Company, StringComparer.OrdinalIgnoreCase).ToList(),
             _ => jobs.OrderByDescending(job => job.DatePosted).ThenBy(job => job.Title, StringComparer.OrdinalIgnoreCase).ToList()
         };
-        var items = jobs.Select((job, index) => new ResultItem(job, index + 1)).ToList();
-        Jobs.ItemsSource = items;
-        SummaryLabel.Text = $"{items.Count} shown · {output.TotalNewJobs} new";
-        Jobs.IsVisible = items.Count > 0;
-        EmptyState.IsVisible = items.Count == 0;
+        filteredItems = jobs.Select((job, index) => new ResultItem(job, index + 1)).ToList();
+        ShowVisibleJobs();
         var selectedSourceOutput = source == "All"
             ? null
             : (output.Sources ?? []).FirstOrDefault(item => string.Equals(item.Source, source, StringComparison.OrdinalIgnoreCase));
@@ -285,81 +339,16 @@ public partial class ResultsPage : ContentPage
         };
     }
 
-    private sealed record ResultItem
+    private void ShowVisibleJobs()
     {
-        public ResultItem(JobVacancy job, int index)
-        {
-            Index = index;
-            Title = job.Title;
-            Company = string.IsNullOrWhiteSpace(job.Company) ? "Company not provided" : job.Company;
-            Classification = job.Classification?.Classification ?? "review";
-            SourceLabel = job.Source.Split('-', 2)[0];
-            Metadata = string.Join(" | ", new[]
-            {
-                FormatCompanyRating(job.CompanyRating),
-                job.Location,
-                job.DatePosted is { } datePosted ? $"Posted {datePosted:d}" : null,
-                job.EmploymentTypes.Count > 0 ? string.Join(", ", job.EmploymentTypes) : null
-            }.Where(value => !string.IsNullOrWhiteSpace(value)));
-            ReasonTags = (job.Classification?.Reasons ?? []).Select(ToReasonTag).ToList();
-            Url = job.Url;
-            Description = job.Description?.Trim() ?? string.Empty;
-            DetailsMetadata = string.Join(" | ", new[]
-            {
-                Company,
-                SourceLabel,
-                Metadata
-            }.Where(value => !string.IsNullOrWhiteSpace(value)));
-        }
-
-        public int Index { get; }
-        public string ListNumber => $"#{Index}";
-        public string Title { get; }
-        public string Company { get; }
-        public string Classification { get; }
-        public string SourceLabel { get; }
-        public string Metadata { get; }
-        public IReadOnlyList<string> ReasonTags { get; }
-        public string Url { get; }
-        public string Description { get; }
-        public string DetailsMetadata { get; }
-        public bool HasDescription => !string.IsNullOrWhiteSpace(Description);
-        public string ClassificationBackground => Classification switch
-        {
-            "relevant" => "#E6F4F0",
-            "excluded" => "#FDE8E7",
-            _ => "#FFF3D6"
-        };
-
-        public string ClassificationForeground => Classification switch
-        {
-            "relevant" => "#147D72",
-            "excluded" => "#A61B1B",
-            _ => "#8A5A00"
-        };
-
-        private static string? FormatCompanyRating(double? rating)
-        {
-            return rating is > 0
-                ? $"Rating {rating.Value:0.#}/5"
-                : null;
-        }
-
-        private static string ToReasonTag(string reason)
-        {
-            var separator = reason.IndexOf(':');
-            var kind = separator < 0 ? reason : reason[..separator];
-            var value = separator < 0 ? string.Empty : reason[(separator + 1)..];
-            return kind switch
-            {
-                "include-signal" => $"Matches {value}",
-                "role-mismatch" => $"Different role: {value}",
-                "other-language" => $"Other specialization: {value}",
-                "junior" => $"Junior: {value}",
-                "no-include-signal" => "No target match",
-                "glassdoor-short-description" => "Short description",
-                _ => reason
-            };
-        }
+        var visibleItems = filteredItems.Take(visibleJobCount).ToList();
+        Jobs.ItemsSource = visibleItems;
+        SummaryLabel.Text = visibleItems.Count < filteredItems.Count
+            ? $"{visibleItems.Count} of {filteredItems.Count} shown · {output?.TotalNewJobs ?? 0} new"
+            : $"{filteredItems.Count} shown · {output?.TotalNewJobs ?? 0} new";
+        Jobs.IsVisible = visibleItems.Count > 0;
+        EmptyState.IsVisible = visibleItems.Count == 0;
+        LoadMoreButton.IsVisible = visibleItems.Count < filteredItems.Count;
     }
+
 }

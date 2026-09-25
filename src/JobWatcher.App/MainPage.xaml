@@ -1,10 +1,11 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-             x:Class="JobWatcher.App.MainPage">
+             xmlns:local="clr-namespace:JobWatcher.App"
+             x:Class="JobWatcher.App.MainPage"
+             x:DataType="local:DashboardViewModel">
 
-    <ScrollView>
-        <Grid Padding="24" RowDefinitions="Auto,Auto,Auto,*" RowSpacing="20" MaximumWidthRequest="1120">
+    <Grid Padding="24" RowDefinitions="Auto,Auto,Auto,*" RowSpacing="20" MaximumWidthRequest="1120">
             <Grid ColumnDefinitions="*,Auto">
                 <VerticalStackLayout Spacing="4">
                     <Label Text="Job Watcher" FontAttributes="Bold" FontSize="28" />
@@ -39,7 +40,7 @@
             <CollectionView ItemsSource="{Binding RunStatuses}" SelectionMode="None" HeightRequest="140">
                 <CollectionView.Header><Label Text="Latest Source Status" FontAttributes="Bold" FontSize="20" Margin="0,0,0,8" /></CollectionView.Header>
                 <CollectionView.ItemTemplate>
-                    <DataTemplate>
+                    <DataTemplate x:DataType="local:SourceRunStatus">
                         <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto" RowSpacing="4" Padding="0,0,0,10">
                             <Label Text="{Binding Source}" FontAttributes="Bold" />
                             <Label Grid.Column="1" Text="{Binding Status}" TextColor="{StaticResource Gray500}" HorizontalTextAlignment="End" />
@@ -53,7 +54,7 @@
                     <Label Text="Source Profiles" FontAttributes="Bold" FontSize="20" Margin="0,0,0,8" />
                 </CollectionView.Header>
                 <CollectionView.ItemTemplate>
-                    <DataTemplate>
+                    <DataTemplate x:DataType="local:SourceProfileSummary">
                         <Border Padding="16" Margin="0,0,0,10" Stroke="{StaticResource Gray200}">
                             <Grid ColumnDefinitions="3*,2*" RowDefinitions="Auto,Auto" RowSpacing="6">
                                 <Label Text="{Binding Name}" FontAttributes="Bold" FontSize="16" />
@@ -66,7 +67,6 @@
                 </CollectionView.ItemTemplate>
             </CollectionView>
             </Grid>
-        </Grid>
-    </ScrollView>
+    </Grid>
 
 </ContentPage>

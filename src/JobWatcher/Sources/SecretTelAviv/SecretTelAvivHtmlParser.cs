@@ -281,9 +281,7 @@ public sealed partial class SecretTelAvivHtmlParser
         return lines.Count == 0 ? null : string.Join("\n", lines);
     }
 
-    private static string NormalizeUrl(string href) => Uri.TryCreate(href, UriKind.Absolute, out var absolute)
-        ? absolute.ToString()
-        : new Uri(BaseUri, WebUtility.HtmlDecode(href)).ToString();
+    private static string NormalizeUrl(string href) => JobWatcher.Sources.SourceUrl.ToAbsoluteHttpUrl(BaseUri, WebUtility.HtmlDecode(href));
 
     private static string? ExtractExternalId(string url)
     {

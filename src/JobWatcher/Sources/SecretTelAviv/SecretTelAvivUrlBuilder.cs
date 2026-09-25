@@ -13,7 +13,7 @@ public static class SecretTelAvivUrlBuilder
             throw new InvalidOperationException("Secret Tel Aviv base URL must be absolute.");
         }
 
-        if (Uri.TryCreate(filter.SearchUrl, UriKind.Absolute, out var searchUri))
+        if (JobWatcher.Sources.SourceUrl.TryCreateHttpAbsolute(filter.SearchUrl, out var searchUri))
         {
             return searchUri.ToString();
         }

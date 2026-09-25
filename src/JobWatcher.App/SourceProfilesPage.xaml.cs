@@ -2000,31 +2000,31 @@ public partial class SourceProfilesPage : ContentPage
 
     private sealed record JobKarovCategory(string Id, string Name);
     private sealed record JobKarovArea(string Id, string Name, string Region);
-    private sealed class JobKarovCategoryOption(JobKarovCategory category)
+    private sealed class JobKarovCategoryOption(JobKarovCategory category) : ISelectableChoice
     {
         public JobKarovCategory Category { get; } = category;
         public string DisplayName => $"{Category.Name} ({Category.Id})";
         public bool IsSelected { get; set; }
     }
-    private sealed class JobKarovRoleOption(JobKarovRole role)
+    private sealed class JobKarovRoleOption(JobKarovRole role) : ISelectableChoice
     {
         public JobKarovRole Role { get; } = role;
         public string DisplayName => $"{Role.Name} ({Role.Id})";
         public string SearchText => $"{Role.Name} {Role.Category} {Role.Id}";
         public bool IsSelected { get; set; }
     }
-    private sealed class JobKarovRoleGroup(string category, IEnumerable<JobKarovRoleOption> roles) : List<JobKarovRoleOption>(roles)
+    private sealed class JobKarovRoleGroup(string category, IEnumerable<JobKarovRoleOption> roles) : List<JobKarovRoleOption>(roles), ICategoryGroupHeader
     {
         public string Category { get; } = category;
     }
-    private sealed class JobKarovAreaOption(JobKarovArea area)
+    private sealed class JobKarovAreaOption(JobKarovArea area) : ISelectableChoice
     {
         public JobKarovArea Area { get; } = area;
         public string DisplayName => $"{Area.Name} ({Area.Id})";
         public string SearchText => $"{Area.Name} {Area.Region} {Area.Id}";
         public bool IsSelected { get; set; }
     }
-    private sealed class JobKarovAreaGroup(string region, IEnumerable<JobKarovAreaOption> areas) : List<JobKarovAreaOption>(areas)
+    private sealed class JobKarovAreaGroup(string region, IEnumerable<JobKarovAreaOption> areas) : List<JobKarovAreaOption>(areas), IRegionGroupHeader
     {
         public string Region { get; } = region;
     }
@@ -2035,52 +2035,52 @@ public partial class SourceProfilesPage : ContentPage
     {
         public string DisplayName => $"{Name} ({Id})";
     }
-    private sealed class DrushimCategoryOption(DrushimCategory category)
+    private sealed class DrushimCategoryOption(DrushimCategory category) : ISelectableChoice
     {
         public DrushimCategory Category { get; } = category;
         public string DisplayName => $"{Category.Name} ({Category.Id})";
         public bool IsSelected { get; set; }
     }
-    private sealed class DrushimSubcategoryOption(DrushimSubcategory subcategory)
+    private sealed class DrushimSubcategoryOption(DrushimSubcategory subcategory) : ISelectableChoice
     {
         public DrushimSubcategory Subcategory { get; } = subcategory;
         public string DisplayName => $"{Subcategory.Name} ({Subcategory.Id})";
         public string SearchText => $"{Subcategory.Name} {Subcategory.Group} {Subcategory.Id}";
         public bool IsSelected { get; set; }
     }
-    private sealed class DrushimSubcategoryGroup(string category, IEnumerable<DrushimSubcategoryOption> subcategories) : List<DrushimSubcategoryOption>(subcategories)
+    private sealed class DrushimSubcategoryGroup(string category, IEnumerable<DrushimSubcategoryOption> subcategories) : List<DrushimSubcategoryOption>(subcategories), ICategoryGroupHeader
     {
         public string Category { get; } = category;
     }
-    private sealed class DrushimLocationOption(DrushimLocation location)
+    private sealed class DrushimLocationOption(DrushimLocation location) : ISelectableChoice
     {
         public DrushimLocation Location { get; } = location;
         public string DisplayName => $"{Location.Name} ({Location.Id})";
         public string SearchText => $"{Location.Name} {Location.Zone} {Location.Id}";
         public bool IsSelected { get; set; }
     }
-    private sealed class DrushimLocationGroup(string zone, IEnumerable<DrushimLocationOption> locations) : List<DrushimLocationOption>(locations)
+    private sealed class DrushimLocationGroup(string zone, IEnumerable<DrushimLocationOption> locations) : List<DrushimLocationOption>(locations), IZoneGroupHeader
     {
         public string Zone { get; } = zone;
     }
     private sealed record AllJobsPosition(int Id, string Name, string Group);
-    private sealed class AllJobsPositionOption(AllJobsPosition position)
+    private sealed class AllJobsPositionOption(AllJobsPosition position) : ISelectableChoice
     {
         public AllJobsPosition Position { get; } = position;
         public string DisplayName => $"{Position.Name} ({Position.Id})";
         public string SearchText => $"{Position.Name} {Position.Group} {Position.Id}";
         public bool IsSelected { get; set; }
     }
-    private sealed class AllJobsPositionGroup(string group, IEnumerable<AllJobsPositionOption> positions) : List<AllJobsPositionOption>(positions)
+    private sealed class AllJobsPositionGroup(string group, IEnumerable<AllJobsPositionOption> positions) : List<AllJobsPositionOption>(positions), IGroupHeader
     {
         public string Group { get; } = group;
     }
     private sealed record AllJobsFilterChoice(int Id, string Name, string Group);
-    private sealed class AllJobsFilterChoiceOption(AllJobsFilterChoice choice)
+    private sealed class AllJobsFilterChoiceOption(AllJobsFilterChoice choice) : ISelectableChoice
     {
         public AllJobsFilterChoice Choice { get; } = choice;
         public string DisplayName => $"{Choice.Name} ({Choice.Id})";
         public bool IsSelected { get; set; }
     }
-    private sealed record ProfileListItem(string Name, string Adapter);
+    private sealed record ProfileListItem(string Name, string Adapter) : IProfileListItem;
 }
