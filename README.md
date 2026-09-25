@@ -444,6 +444,25 @@ Important subdirectories:
 - `data/secrets/glassdoor-session.txt` — exported browser session; this is secret and should never
   be committed or shared casually.
 
+The Results page has a `Clear history` button for resetting local collection history. It deletes
+`data/snapshots/` and `data/output/`, but keeps settings, Glassdoor session data, and diagnostics.
+The next successful run will treat the current vacancies as new.
+
+On macOS, the exact app data path depends on the Mac Catalyst container. To locate recent manual
+run logs:
+
+```bash
+find "$HOME/Library/Containers" "$HOME/Library/Application Support" \
+  -path "*manual-runs/run-*.log" -print 2>/dev/null | sort | tail -5
+```
+
+To inspect the latest log:
+
+```bash
+tail -n 250 "$(find "$HOME/Library/Containers" "$HOME/Library/Application Support" \
+  -path "*manual-runs/run-*.log" -print 2>/dev/null | sort | tail -1)"
+```
+
 For local development:
 
 ```powershell

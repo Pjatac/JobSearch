@@ -38,6 +38,40 @@ public partial class ResultsPage : ContentPage
     private void OnFilterChanged(object? sender, TextChangedEventArgs e) => ShowJobs();
     private void OnFilterChanged(object? sender, ToggledEventArgs e) => ShowJobs();
 
+    private async void OnClearHistoryClicked(object? sender, EventArgs e)
+    {
+        var confirmed = await DisplayAlertAsync(
+            "Clear collection history",
+            "Remove saved snapshots and result output? Settings, Glassdoor session, and diagnostics are kept. The next successful run will treat current vacancies as new.",
+            "Clear history",
+            "Cancel");
+        if (!confirmed)
+        {
+            return;
+        }
+
+        try
+        {
+            var dataDirectory = Path.Combine(FileSystem.AppDataDirectory, "data");
+            DeleteDirectoryIfExists(Path.Combine(dataDirectory, "snapshots"));
+            DeleteDirectoryIfExists(Path.Combine(dataDirectory, "output"));
+            LoadOutput();
+            await DisplayAlertAsync("History cleared", "Collection history was removed. Run collection to build a fresh baseline.", "OK");
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            await DisplayAlertAsync("Could not clear history", ex.Message, "OK");
+        }
+    }
+
+    private static void DeleteDirectoryIfExists(string path)
+    {
+        if (Directory.Exists(path))
+        {
+            Directory.Delete(path, recursive: true);
+        }
+    }
+
     private async void OnOpenClicked(object? sender, EventArgs e)
     {
         if (sender is Button { CommandParameter: string url } && Uri.TryCreate(url, UriKind.Absolute, out var uri))
