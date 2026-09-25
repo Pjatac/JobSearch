@@ -5,8 +5,7 @@
              x:Class="JobWatcher.App.MainPage"
              x:DataType="local:DashboardViewModel">
 
-    <ScrollView>
-        <Grid Padding="24" RowDefinitions="Auto,Auto,Auto,*" RowSpacing="20" MaximumWidthRequest="1120">
+    <Grid Padding="24" RowDefinitions="Auto,Auto,Auto,*" RowSpacing="20" MaximumWidthRequest="1120">
             <Grid ColumnDefinitions="*,Auto">
                 <VerticalStackLayout Spacing="4">
                     <Label Text="Job Watcher" FontAttributes="Bold" FontSize="28" />
@@ -68,7 +67,6 @@
                 </CollectionView.ItemTemplate>
             </CollectionView>
             </Grid>
-        </Grid>
-    </ScrollView>
+    </Grid>
 
 </ContentPage>

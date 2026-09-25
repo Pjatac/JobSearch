@@ -66,7 +66,10 @@ public partial class ResultsPage : ContentPage
             DeleteDirectoryIfExists(Path.Combine(dataDirectory, "snapshots"));
             DeleteDirectoryIfExists(Path.Combine(dataDirectory, "output"));
             LoadOutput();
-            await DisplayAlertAsync("History cleared", "Collection history was removed. Run collection to build a fresh baseline.", "OK");
+            await DisplayAlertAsync(
+                "History cleared",
+                $"Collection history was removed from:{Environment.NewLine}{dataDirectory}{Environment.NewLine}{Environment.NewLine}Run collection to build a fresh baseline.",
+                "OK");
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
