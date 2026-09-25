@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:local="clr-namespace:JobWatcher.App"
              x:Class="JobWatcher.App.SourceProfilesPage"
              Title="Search profiles">
     <Grid x:Name="Root" Padding="24" ColumnDefinitions="340,*" ColumnSpacing="20">
@@ -17,7 +18,7 @@
             </Grid>
             <CollectionView x:Name="Profiles" Grid.Row="1" SelectionMode="Single" SelectionChanged="OnProfileSelected">
                 <CollectionView.ItemTemplate>
-                    <DataTemplate x:DataType="{x:Null}">
+                    <DataTemplate x:DataType="local:IProfileListItem">
                         <Border Padding="12" Margin="0,0,0,8" Stroke="{StaticResource Gray200}">
                             <VerticalStackLayout Spacing="3">
                                 <Label Text="{Binding Name}" FontAttributes="Bold" />
@@ -46,7 +47,7 @@
                     </HorizontalStackLayout>
                     <CollectionView x:Name="JobKarovCategoriesColumns" Grid.Row="3" SelectionMode="None">
                         <CollectionView.ItemsLayout><GridItemsLayout Orientation="Vertical" Span="3" HorizontalItemSpacing="20" VerticalItemSpacing="6" /></CollectionView.ItemsLayout>
-                        <CollectionView.ItemTemplate><DataTemplate x:DataType="{x:Null}"><HorizontalStackLayout Spacing="4"><CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}" /><Label Text="{Binding DisplayName}" VerticalOptions="Center" LineBreakMode="WordWrap" /></HorizontalStackLayout></DataTemplate></CollectionView.ItemTemplate>
+                        <CollectionView.ItemTemplate><DataTemplate x:DataType="local:ISelectableChoice"><HorizontalStackLayout Spacing="4"><CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}" /><Label Text="{Binding DisplayName}" VerticalOptions="Center" LineBreakMode="WordWrap" /></HorizontalStackLayout></DataTemplate></CollectionView.ItemTemplate>
                     </CollectionView>
                     <HorizontalStackLayout Grid.Row="4" HorizontalOptions="End" Spacing="8">
                         <Button Text="Cancel" Clicked="OnCancelJobKarovCategoriesClicked" />
@@ -63,8 +64,8 @@
                     <HorizontalStackLayout Grid.Row="2"><Button Text="Clear" Clicked="OnClearJobKarovRolesClicked" /></HorizontalStackLayout>
                     <CollectionView x:Name="JobKarovRolesList" Grid.Row="3" SelectionMode="None" IsGrouped="True">
                         <CollectionView.ItemsLayout><GridItemsLayout Orientation="Vertical" Span="3" HorizontalItemSpacing="20" VerticalItemSpacing="6" /></CollectionView.ItemsLayout>
-                        <CollectionView.GroupHeaderTemplate><DataTemplate x:DataType="{x:Null}"><Label Text="{Binding Category}" FontAttributes="Bold" Margin="0,10,0,4" /></DataTemplate></CollectionView.GroupHeaderTemplate>
-                        <CollectionView.ItemTemplate><DataTemplate x:DataType="{x:Null}"><HorizontalStackLayout Spacing="4"><CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}" /><Label Text="{Binding DisplayName}" VerticalOptions="Center" LineBreakMode="WordWrap" /></HorizontalStackLayout></DataTemplate></CollectionView.ItemTemplate>
+                        <CollectionView.GroupHeaderTemplate><DataTemplate x:DataType="local:ICategoryGroupHeader"><Label Text="{Binding Category}" FontAttributes="Bold" Margin="0,10,0,4" /></DataTemplate></CollectionView.GroupHeaderTemplate>
+                        <CollectionView.ItemTemplate><DataTemplate x:DataType="local:ISelectableChoice"><HorizontalStackLayout Spacing="4"><CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}" /><Label Text="{Binding DisplayName}" VerticalOptions="Center" LineBreakMode="WordWrap" /></HorizontalStackLayout></DataTemplate></CollectionView.ItemTemplate>
                     </CollectionView>
                     <HorizontalStackLayout Grid.Row="4" HorizontalOptions="End" Spacing="8"><Button Text="Cancel" Clicked="OnCancelJobKarovRolesClicked" /><Button Text="Done" Clicked="OnDoneJobKarovRolesClicked" /></HorizontalStackLayout>
                 </Grid>
@@ -81,8 +82,8 @@
                     </HorizontalStackLayout>
                     <CollectionView x:Name="JobKarovAreasList" Grid.Row="3" SelectionMode="None" IsGrouped="True">
                         <CollectionView.ItemsLayout><GridItemsLayout Orientation="Vertical" Span="3" HorizontalItemSpacing="20" VerticalItemSpacing="6" /></CollectionView.ItemsLayout>
-                        <CollectionView.GroupHeaderTemplate><DataTemplate x:DataType="{x:Null}"><Label Text="{Binding Region}" FontAttributes="Bold" Margin="0,10,0,4" /></DataTemplate></CollectionView.GroupHeaderTemplate>
-                        <CollectionView.ItemTemplate><DataTemplate x:DataType="{x:Null}"><HorizontalStackLayout Spacing="4"><CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}" /><Label Text="{Binding DisplayName}" VerticalOptions="Center" LineBreakMode="WordWrap" /></HorizontalStackLayout></DataTemplate></CollectionView.ItemTemplate>
+                        <CollectionView.GroupHeaderTemplate><DataTemplate x:DataType="local:IRegionGroupHeader"><Label Text="{Binding Region}" FontAttributes="Bold" Margin="0,10,0,4" /></DataTemplate></CollectionView.GroupHeaderTemplate>
+                        <CollectionView.ItemTemplate><DataTemplate x:DataType="local:ISelectableChoice"><HorizontalStackLayout Spacing="4"><CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}" /><Label Text="{Binding DisplayName}" VerticalOptions="Center" LineBreakMode="WordWrap" /></HorizontalStackLayout></DataTemplate></CollectionView.ItemTemplate>
                     </CollectionView>
                     <HorizontalStackLayout Grid.Row="4" HorizontalOptions="End" Spacing="8">
                         <Button Text="Cancel" Clicked="OnCancelJobKarovAreasClicked" />
@@ -101,7 +102,7 @@
                     </HorizontalStackLayout>
                     <CollectionView x:Name="DrushimCategoriesList" Grid.Row="2" SelectionMode="None">
                         <CollectionView.ItemsLayout><GridItemsLayout Orientation="Vertical" Span="2" HorizontalItemSpacing="20" VerticalItemSpacing="6" /></CollectionView.ItemsLayout>
-                        <CollectionView.ItemTemplate><DataTemplate x:DataType="{x:Null}"><HorizontalStackLayout Spacing="4"><CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}" /><Label Text="{Binding DisplayName}" VerticalOptions="Center" LineBreakMode="WordWrap" /></HorizontalStackLayout></DataTemplate></CollectionView.ItemTemplate>
+                        <CollectionView.ItemTemplate><DataTemplate x:DataType="local:ISelectableChoice"><HorizontalStackLayout Spacing="4"><CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}" /><Label Text="{Binding DisplayName}" VerticalOptions="Center" LineBreakMode="WordWrap" /></HorizontalStackLayout></DataTemplate></CollectionView.ItemTemplate>
                     </CollectionView>
                     <HorizontalStackLayout Grid.Row="3" HorizontalOptions="End" Spacing="8">
                         <Button Text="Cancel" Clicked="OnCancelDrushimCategoriesClicked" />
@@ -118,8 +119,8 @@
                     <HorizontalStackLayout Grid.Row="2"><Button Text="Clear" Clicked="OnClearDrushimSubcategoriesClicked" /></HorizontalStackLayout>
                     <CollectionView x:Name="DrushimSubcategoriesList" Grid.Row="3" SelectionMode="None" IsGrouped="True">
                         <CollectionView.ItemsLayout><GridItemsLayout Orientation="Vertical" Span="3" HorizontalItemSpacing="20" VerticalItemSpacing="6" /></CollectionView.ItemsLayout>
-                        <CollectionView.GroupHeaderTemplate><DataTemplate x:DataType="{x:Null}"><Label Text="{Binding Category}" FontAttributes="Bold" Margin="0,10,0,4" /></DataTemplate></CollectionView.GroupHeaderTemplate>
-                        <CollectionView.ItemTemplate><DataTemplate x:DataType="{x:Null}"><HorizontalStackLayout Spacing="4"><CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}" /><Label Text="{Binding DisplayName}" VerticalOptions="Center" LineBreakMode="WordWrap" /></HorizontalStackLayout></DataTemplate></CollectionView.ItemTemplate>
+                        <CollectionView.GroupHeaderTemplate><DataTemplate x:DataType="local:ICategoryGroupHeader"><Label Text="{Binding Category}" FontAttributes="Bold" Margin="0,10,0,4" /></DataTemplate></CollectionView.GroupHeaderTemplate>
+                        <CollectionView.ItemTemplate><DataTemplate x:DataType="local:ISelectableChoice"><HorizontalStackLayout Spacing="4"><CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}" /><Label Text="{Binding DisplayName}" VerticalOptions="Center" LineBreakMode="WordWrap" /></HorizontalStackLayout></DataTemplate></CollectionView.ItemTemplate>
                     </CollectionView>
                     <HorizontalStackLayout Grid.Row="4" HorizontalOptions="End" Spacing="8">
                         <Button Text="Cancel" Clicked="OnCancelDrushimSubcategoriesClicked" />
@@ -139,8 +140,8 @@
                     </HorizontalStackLayout>
                     <CollectionView x:Name="DrushimLocationsList" Grid.Row="3" SelectionMode="None" IsGrouped="True">
                         <CollectionView.ItemsLayout><GridItemsLayout Orientation="Vertical" Span="3" HorizontalItemSpacing="20" VerticalItemSpacing="6" /></CollectionView.ItemsLayout>
-                        <CollectionView.GroupHeaderTemplate><DataTemplate x:DataType="{x:Null}"><Label Text="{Binding Zone}" FontAttributes="Bold" Margin="0,10,0,4" /></DataTemplate></CollectionView.GroupHeaderTemplate>
-                        <CollectionView.ItemTemplate><DataTemplate x:DataType="{x:Null}"><HorizontalStackLayout Spacing="4"><CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}" /><Label Text="{Binding DisplayName}" VerticalOptions="Center" LineBreakMode="WordWrap" /></HorizontalStackLayout></DataTemplate></CollectionView.ItemTemplate>
+                        <CollectionView.GroupHeaderTemplate><DataTemplate x:DataType="local:IZoneGroupHeader"><Label Text="{Binding Zone}" FontAttributes="Bold" Margin="0,10,0,4" /></DataTemplate></CollectionView.GroupHeaderTemplate>
+                        <CollectionView.ItemTemplate><DataTemplate x:DataType="local:ISelectableChoice"><HorizontalStackLayout Spacing="4"><CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}" /><Label Text="{Binding DisplayName}" VerticalOptions="Center" LineBreakMode="WordWrap" /></HorizontalStackLayout></DataTemplate></CollectionView.ItemTemplate>
                     </CollectionView>
                     <HorizontalStackLayout Grid.Row="4" HorizontalOptions="End" Spacing="8">
                         <Button Text="Cancel" Clicked="OnCancelDrushimLocationsClicked" />
@@ -157,8 +158,8 @@
                     <HorizontalStackLayout Grid.Row="2"><Button Text="Clear" Clicked="OnClearAllJobsPositionsClicked" /></HorizontalStackLayout>
                     <CollectionView x:Name="AllJobsPositionsList" Grid.Row="3" SelectionMode="None" IsGrouped="True">
                         <CollectionView.ItemsLayout><GridItemsLayout Orientation="Vertical" Span="3" HorizontalItemSpacing="20" VerticalItemSpacing="6" /></CollectionView.ItemsLayout>
-                        <CollectionView.GroupHeaderTemplate><DataTemplate x:DataType="{x:Null}"><Label Text="{Binding Group}" FontAttributes="Bold" Margin="0,10,0,4" /></DataTemplate></CollectionView.GroupHeaderTemplate>
-                        <CollectionView.ItemTemplate><DataTemplate x:DataType="{x:Null}"><HorizontalStackLayout Spacing="4"><CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}" /><Label Text="{Binding DisplayName}" VerticalOptions="Center" LineBreakMode="WordWrap" /></HorizontalStackLayout></DataTemplate></CollectionView.ItemTemplate>
+                        <CollectionView.GroupHeaderTemplate><DataTemplate x:DataType="local:IGroupHeader"><Label Text="{Binding Group}" FontAttributes="Bold" Margin="0,10,0,4" /></DataTemplate></CollectionView.GroupHeaderTemplate>
+                        <CollectionView.ItemTemplate><DataTemplate x:DataType="local:ISelectableChoice"><HorizontalStackLayout Spacing="4"><CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}" /><Label Text="{Binding DisplayName}" VerticalOptions="Center" LineBreakMode="WordWrap" /></HorizontalStackLayout></DataTemplate></CollectionView.ItemTemplate>
                     </CollectionView>
                     <HorizontalStackLayout Grid.Row="4" HorizontalOptions="End" Spacing="8">
                         <Button Text="Cancel" Clicked="OnCancelAllJobsPositionsClicked" />
@@ -177,7 +178,7 @@
                     </HorizontalStackLayout>
                     <CollectionView x:Name="AllJobsTypesList" Grid.Row="2" SelectionMode="None">
                         <CollectionView.ItemsLayout><GridItemsLayout Orientation="Vertical" Span="2" HorizontalItemSpacing="20" VerticalItemSpacing="6" /></CollectionView.ItemsLayout>
-                        <CollectionView.ItemTemplate><DataTemplate x:DataType="{x:Null}"><HorizontalStackLayout Spacing="4"><CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}" /><Label Text="{Binding DisplayName}" VerticalOptions="Center" LineBreakMode="WordWrap" /></HorizontalStackLayout></DataTemplate></CollectionView.ItemTemplate>
+                        <CollectionView.ItemTemplate><DataTemplate x:DataType="local:ISelectableChoice"><HorizontalStackLayout Spacing="4"><CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}" /><Label Text="{Binding DisplayName}" VerticalOptions="Center" LineBreakMode="WordWrap" /></HorizontalStackLayout></DataTemplate></CollectionView.ItemTemplate>
                     </CollectionView>
                     <HorizontalStackLayout Grid.Row="3" HorizontalOptions="End" Spacing="8">
                         <Button Text="Cancel" Clicked="OnCancelAllJobsTypesClicked" />
@@ -196,7 +197,7 @@
                     </HorizontalStackLayout>
                     <CollectionView x:Name="AllJobsRegionsList" Grid.Row="2" SelectionMode="None">
                         <CollectionView.ItemsLayout><GridItemsLayout Orientation="Vertical" Span="2" HorizontalItemSpacing="20" VerticalItemSpacing="6" /></CollectionView.ItemsLayout>
-                        <CollectionView.ItemTemplate><DataTemplate x:DataType="{x:Null}"><HorizontalStackLayout Spacing="4"><CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}" /><Label Text="{Binding DisplayName}" VerticalOptions="Center" LineBreakMode="WordWrap" /></HorizontalStackLayout></DataTemplate></CollectionView.ItemTemplate>
+                        <CollectionView.ItemTemplate><DataTemplate x:DataType="local:ISelectableChoice"><HorizontalStackLayout Spacing="4"><CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}" /><Label Text="{Binding DisplayName}" VerticalOptions="Center" LineBreakMode="WordWrap" /></HorizontalStackLayout></DataTemplate></CollectionView.ItemTemplate>
                     </CollectionView>
                     <HorizontalStackLayout Grid.Row="3" HorizontalOptions="End" Spacing="8">
                         <Button Text="Cancel" Clicked="OnCancelAllJobsRegionsClicked" />
