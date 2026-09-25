@@ -1,148 +1,146 @@
-# Job Watcher — правила роботи для агентів
+# Job Watcher - Agent Rules
 
-Цей файл — обов'язковий для будь-якого AI-агента (Claude Code, Codex, інші), що працює в цьому
-репозиторії. Правила тут мають пріоритет над "здоровим глуздом" агента. Якщо правило заважає
-виконати задачу — зупинись і спитай, а не обходь його.
+This file is mandatory for any AI agent working in this repository. If it conflicts with an
+agent's usual habits, this file wins. If a rule blocks the task, stop and ask the user instead of
+working around it.
 
-Мова спілкування з користувачем — українська. Код, коментарі, назви, README — англійською.
-
----
-
-## 1. Головне правило: бюджет спроб
-
-**Три невдалі спроби поспіль по одній і тій самій проблемі — СТОП.**
-
-"Спроба" = один цикл `зміна → запуск/перевірка → все ще не працює`.
-
-Після третьої невдачі агент **зобов'язаний**:
-
-1. припинити будь-які подальші зміни коду по цій проблемі;
-2. написати користувачу короткий звіт:
-   - що саме не працює (точна помилка / статус / симптом),
-   - які три речі спробував і що кожна дала,
-   - 2–3 варіанти "куди далі" з оцінкою вартості,
-   - чого саме бракує для рішення (дані, доступ, рішення користувача);
-3. **чекати на відповідь користувача.** Не "спробую ще один варіантик".
-
-Лічильник спроб скидається лише коли користувач дав нові вхідні (нове рішення, новий файл,
-новий доступ), а не коли агент вигадав нову ідею сам.
-
-### Що НЕ рахується як спроба
-
-Читання файлів, `grep`, запуск тестів на фікстурах, білд — це не спроби, це орієнтування.
-Лічильник стосується спроб **полагодити конкретну проблему**.
+User-facing conversation is Ukrainian. Code, comments, identifiers, README, and product
+documentation are English.
 
 ---
 
-## 2. Мережа: жорсткий бюджет
+## 1. Three-Attempt Budget
 
-Живі HTTP-запити до сайтів вакансій — найдорожча і найбезглуздіша дія при повторенні.
+**Three failed attempts in a row on the same problem means STOP.**
 
-**Правила:**
+An attempt is one cycle of `change -> run/check -> still broken`.
 
-- **Один живий запит на одну гіпотезу.** Не цикл, не ретраї, не "а якщо інший User-Agent".
-- **Відповідь одразу зберігається** у `data/diagnostics/<source>-<timestamp>.html` (або `.json`).
-  Уся подальша робота — офлайн, по цьому файлу.
-- **Максимум 3 живих запити за сесію** без окремого дозволу користувача. Дійшов до третього —
-  повідом і спитай.
-- Не запускай `dotnet run` повного застосунку заради перевірки одного джерела — це б'є по всіх
-  п'яти сайтах. Роби точковий пробник.
+After the third failed attempt, the agent must:
 
-### Анти-бот захист (Cloudflare, Radware, PerimeterX, DataDome)
+1. stop making code changes for that problem;
+2. report briefly:
+   - what still fails, with the exact error/status/symptom;
+   - which three approaches were tried and what each produced;
+   - 2-3 options for what to do next, with rough cost/risk;
+   - what is missing: data, access, or a user decision;
+3. wait for the user's answer.
 
-Це окрема категорія, і саме на ній попередня сесія спалила всі токени.
-
-Якщо відповідь — `403`, `429`, `503`, сторінка з `<title>` що містить `Security`/`Just a moment`/
-`Attention Required`, або `<meta name="robots" content="noindex, nofollow">` без корисного вмісту:
-
-1. **зупинись негайно;**
-2. збережи відповідь у `data/diagnostics/`;
-3. повідом користувача: який статус, який заголовок сторінки, скільки байт, чи є цільові селектори;
-4. **чекай на рішення.**
-
-**Категорично заборонено без явного дозволу користувача:**
-
-- перебирати User-Agent / заголовки / TLS-профілі "поки не спрацює";
-- крутити ретраї з затримками, backoff, "спробуємо ще раз через 5 секунд";
-- підбирати cookies, обходити челенджі, розв'язувати капчі;
-- додавати проксі;
-- тягнути Playwright / Selenium / будь-яку браузерну автоматизацію (див. §5).
-
-Обхід захисту — це рішення користувача, не агента.
+Reading files, searching with `rg`, running tests, or building the solution does not count as an
+attempt. The counter is for attempts to fix one concrete problem.
 
 ---
 
-## 3. Що робити ПЕРЕД кодом
+## 2. Network Budget
 
-- Якщо в задачі щось неоднозначне — **питай до того, як писати код**, а не після.
-- Прочитай `README.md` (як воно має працювати) і, за потреби,
-  `JOB_WATCHER_CODEX_BRIEF.md` (початкові вимоги, історичний контекст).
-- Не додавай NuGet-пакети без узгодження. Проєкт свідомо тримає мінімум залежностей.
-- Не переписуй чужі джерела "заодно". Одна задача — одне джерело.
+Live HTTP requests to job sites are expensive and should be rare during development.
+
+Rules:
+
+- One live request per hypothesis. Do not loop, retry, or vary headers "just to see".
+- Save the response immediately under `data/diagnostics/<source>-<timestamp>.html` or `.json`.
+  Continue parser/debug work offline from that saved response.
+- Maximum 3 live requests per session without explicit user approval.
+- Do not run the full collector just to debug one source. Use a targeted probe or saved fixture.
+
+### Anti-Bot Protection
+
+If a response is `403`, `429`, `503`, a security/challenge page, or a noindex/no useful content
+interstitial:
+
+1. stop immediately;
+2. save the response under `data/diagnostics/`;
+3. report status, page title, byte count, and whether target selectors/payloads exist;
+4. wait for the user's decision.
+
+Without explicit approval, do not:
+
+- rotate User-Agent, headers, TLS profiles, cookies, or proxies;
+- attempt CAPTCHA/challenge bypasses;
+- add Playwright, Selenium, or browser automation;
+- repeatedly retry anti-bot responses.
+
+The product has a normal HTTP retry policy for transient timeouts during real runs. That is not a
+license for exploratory retry loops while developing or debugging a source.
 
 ---
 
-## 4. Робота з парсерами
+## 3. Before Coding
 
-- Парсер розробляється і перевіряється **тільки на локальних фікстурах** у
-  `tests/JobWatcher.Tests/Fixtures/`. Тести не ходять у мережу. Ніколи.
-- Реальний HTML для нової фікстури береться з `data/diagnostics/` (тобто з того самого одного
-  живого запиту), а не з нового походу на сайт.
-- Фікстуру для тесту **обрізай** до потрібних вузлів. Не клади 240 КБ HTML у репозиторій.
-- Якщо парсер дає 0 вакансій — спершу перевір, чи це взагалі та сторінка (челендж? редірект?
-  порожній результат пошуку?). `data/diagnostics/glassdoor-backendkfarsaba-20260805T220141Z.html` —
-  приклад: це сторінка-челендж, парсер там ні в чому не винен.
+- Read `README.md` for current behavior and `SESSION_HANDOFF.md` for current operational state.
+- `JOB_WATCHER_CODEX_BRIEF.md` is historical context only; do not treat it as current scope.
+- Ask before coding if the task is ambiguous.
+- Do not add NuGet packages without user approval.
+- Keep edits scoped to the requested source/feature.
 
 ---
 
-## 5. Тверді технічні межі
+## 4. Parser Work
 
-Без явного дозволу користувача **не вводити**:
+- Parser development and verification must use local fixtures in `tests/JobWatcher.Tests/Fixtures/`.
+- Tests must not call live websites.
+- Real HTML/JSON for new fixtures comes from `data/diagnostics/`, created from the single approved
+  live request.
+- Trim fixtures to the needed nodes. Do not commit full large pages when a small fixture is enough.
+- If a parser returns zero vacancies, first check whether the saved response is a challenge,
+  redirect, or genuinely empty search result.
 
-- Playwright, Selenium, будь-яку браузерну автоматизацію;
-- базу даних, Entity Framework;
-- web API, фонову службу, внутрішній планувальник;
-- проксі, сервіси розв'язання капч;
-- нові NuGet-пакети.
+---
 
-**Тримати як є:**
+## 5. Technical Boundaries
+
+Do not introduce without explicit user approval:
+
+- Playwright, Selenium, browser automation;
+- a database or Entity Framework;
+- a web API, background service, or scheduler;
+- proxies or CAPTCHA-solving services;
+- new NuGet packages.
+
+Keep:
 
 - .NET 10, nullable enabled, implicit usings;
 - `System.Text.Json`, `IHttpClientFactory`, `Microsoft.Extensions.*`;
-- HtmlAgilityPack — тільки для навігації по HTML;
-- адаптер джерела за `IJobSource`; порівняння, снапшоти й запис виводу лишаються
-  незалежними від джерела.
+- HtmlAgilityPack only for HTML navigation/parsing;
+- source adapters behind `IJobSource`;
+- comparison, snapshots, output writing, classification, and run controls source-independent.
 
 ---
 
-## 6. Команди
+## 6. Commands
 
 ```powershell
-dotnet build JobWatcher.sln
-dotnet test JobWatcher.sln -m:1
-dotnet run --project src/JobWatcher      # б'є по ВСІХ джерелах — не для налагодження одного
+dotnet build JobWatcher.sln --no-restore -m:1 /p:UseSharedCompilation=false
+dotnet test JobWatcher.sln --no-restore -m:1 /p:UseSharedCompilation=false
+dotnet run --project src/JobWatcher.Cli
 ```
 
-Перед тим як казати "готово": білд чистий + `dotnet test` зелений. Якщо тести падають — так і
-скажи, з виводом. Не звітуй про успіх наполовину.
+Before saying "ready": build is clean and tests are green. If tests/build cannot be run, say that
+clearly and explain why.
+
+Do not use a full run as a single-source diagnostic: it hits every enabled profile.
 
 ---
 
-## 7. Стан репозиторію
+## 7. Repository and Data State
 
-- **Репозиторій НЕ під git.** Відкату немає. Будь-яка перезаписана правка втрачається назавжди.
-  Тому: не роби масових рефакторів, не видаляй файли без спитання, не перезаписуй файл, якого не
-  прочитав повністю.
-- `data/` — робочі дані (снапшоти, вивід, діагностика). Снапшоти — це стан порівняння: видалення
-  снапшота означає, що наступний прогін оголосить усі вакансії новими. Не чисти `data/` "для
-  порядку".
-- `data/secrets/glassdoor-session.json` — **живий сеанс браузера користувача** (куки + User-Agent).
-  Це секрет рівня пароля. Не читай його без потреби, не виводь у лог, не вставляй у звіт, не
-  копіюй у діагностику. У логах допустимі лише **імена** кук, ніколи значення.
+- The repository is under git. Do not rewrite history, reset, or revert user changes unless the
+  user explicitly asks.
+- `data/` is runtime state: snapshots, output, diagnostics, and secrets. Do not clean it "for
+  tidiness".
+- Deleting `data/snapshots/` makes the next successful run treat current vacancies as new.
+- The MAUI `Clear history` action deletes snapshots and output only; it keeps settings, diagnostics,
+  and Glassdoor session data.
+- `data/secrets/glassdoor-session.txt` is a live browser session export. Treat it like a password:
+  do not read it unless needed, do not print it, do not copy it into diagnostics, and never commit
+  it. Logs may include cookie names only, never values.
 
 ---
 
-## 8. Звітність
+## 8. Reporting
 
-У кінці задачі коротко: які файли змінені, результат білду й тестів, що лишилось недоробленим і
-чому. Без переможних реляцій, якщо щось не перевірено — так і пиши, що не перевірено.
+At the end of a task, report briefly:
+
+- what changed;
+- build/test results;
+- anything not verified and why;
+- the branch/commit/push state when relevant.

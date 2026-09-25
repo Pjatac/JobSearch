@@ -1,98 +1,117 @@
 # Job Watcher Session Handoff
 
 This file is the operational starting point for the next development session. Read it after
-`AGENTS.md`, `README.md`, and `DEVELOPMENT_PLAN.md`.
+`AGENTS.md` and `README.md`.
 
 ## Immediate Engineering Priority
 
-Validate the new Drushim profile controls in the MAUI app. Categories, subcategories, locations,
-scope, experience, and free search words are now editable without raw comma-separated ID fields.
-Work from saved diagnostics first; if a live request is needed, follow the one-request budget in
-`AGENTS.md`, save the response under `data/diagnostics/`, and continue offline from that file.
+Validate the `Run / Pause / Stop` branch after the current PR is merged. `Pause` is
+checkpoint-based: it waits before the next source/page/detail request and does not interrupt an
+HTTP request already in flight. `Stop` cancels the run.
+
+After that, the product is mostly in polish/release mode: verify a final all-profile run, prepare
+screenshots for the public post, and keep README/distribution notes aligned with the current app.
 
 ## Current Functional State
 
-- Runtime targets: .NET 10 console/CLI plus a .NET MAUI application for Windows and MacCatalyst.
-- Sources: JobKarov, Drushim, AllJobs, JobSwipe.co, Glassdoor, and Secret Tel Aviv.
-- User-owned settings are separate from defaults and live under MAUI AppData. Do not assume that
-  editing `src/JobWatcher/appsettings.json` changes an existing user's profiles.
-- The current Windows MAUI data root is:
+- Runtime targets: .NET 10 collector core, console/CLI host, and .NET MAUI app for Windows and
+  MacCatalyst.
+- Sources: JobKarov, Drushim, AllJobs, JobSwipe.co, Secret Tel Aviv, DevJobs, and optional
+  Glassdoor.
+- User-owned MAUI settings live under AppData/Library container and are seeded from
+  `src/JobWatcher/appsettings.json` only on first launch. Editing defaults does not change an
+  existing user's settings.
+- Windows MAUI data root observed during development:
   `C:\Users\pjata\AppData\Local\User Name\com.jobwatcher.app\Data`
-- The Glassdoor session under that root is a secret. Do not read, print, copy, or commit it.
-- Source HTTP requests share a retry policy: one retry after a timeout or internal cancellation,
-  after a fixed 5-second delay, with the same URL, body, headers, cookies, and client identity.
-  HTTP responses and anti-bot challenges are not retried.
-- Sources may return `partial_failed` output after preserving already collected listings from a
-  transient failure. Partial new jobs can be written to `new-jobs.json`, but partial snapshots do
-  not replace the last durable source snapshot.
-- Manual run logs under `data/diagnostics/manual-runs/` are pruned whenever a new run log is
-  created. Logs older than 24 hours are deleted; cleanup failures are ignored.
-- Drushim structured profiles support `Query` and `CategoryIds`. When multiple categories are
-  selected, the source fetches each public search URL separately and deduplicates vacancies by
-  external ID. The parser should prefer embedded `__NEXT_DATA__` jobs over rendered cards because
-  the embedded payload carries fuller listing context. Do not route Drushim collection through
-  `/api/jobs/search`; the live site returned a Next.js `/404` page for that endpoint.
-- AllJobs structured profiles support multiple `Positions`, but the source sends one `position`
-  value per request and deduplicates the merged result set.
+- MacCatalyst data lives under the app container. To find logs:
 
-## Secret Tel Aviv Status
+```bash
+find "$HOME/Library/Containers" "$HOME/Library/Application Support" \
+  -path "*manual-runs/run-*.log" -print 2>/dev/null | sort | tail -5
+```
 
-- `SecretTelAvivSource` uses a Chrome TLS profile. A normal .NET client did not successfully read
-  the tested detail page; the TLS client returned HTTP 200.
-- The observed search URL returned HTTP 200 and ten job cards. Each card has title, company,
-  location, employment type, date, and a detail URL.
-- The observed detail URL returned HTTP 200 and a `JobPosting` JSON-LD block with description,
-  posting dates, company, location, and employment type.
-- The source parses search cards, then loads up to `MaxDetailsPerSearch` detail pages sequentially
-  (default 30) and merges the JSON-LD data into the listed vacancy.
-- Both CLI and MAUI manual runs must use `AddJobWatcherCollector()` for registration. The Secret
-  Tel Aviv parser/source and TLS client were added there, with a unit test guarding the
-  registration.
-- The user's persisted `Secret Tel Aviv profile` was repaired to use adapter `SecretTelAviv` and
-  a `secretTelAvivFilter`. `JobKarov-Software` was restored to adapter `JobKarov` after an earlier
-  manual config edit accidentally changed it.
+- `data/secrets/glassdoor-session.txt` is a secret browser-session export. Do not read, print,
+  copy, or commit it. Logs may show cookie names only.
 
-Do not make more exploratory Secret Tel Aviv requests unless the user explicitly asks. Work from
-the saved diagnostics and test fixtures.
+## Collection and Output Behavior
 
-## Known Product and UI Debt
+- Source HTTP requests share one retry policy: one retry after a transient timeout/internal
+  cancellation, after a fixed 5-second delay, with the same URL, body, headers, cookies, and client
+  identity. HTTP responses and anti-bot challenges are not retried.
+- Sources may return `partial_failed` after preserving collected listings from a transient failure.
+  Partial new jobs can be written to `new-jobs.json`, but partial snapshots do not replace the last
+  durable source snapshot.
+- Manual run logs under `data/diagnostics/manual-runs/` are pruned when a new run log is created.
+  Logs older than 24 hours are deleted; cleanup failures are ignored.
+- Output history keeps the latest configured history entries. Each non-paused source also writes
+  `data/output/latest-sources/<source>.json`.
+- Results view supports `Latest run` and `Latest per source`, classification filters, source/search
+  filters, numbered cards, detail copy, and readable plain-text descriptions.
+- `Clear history` deletes snapshots and output while keeping settings, diagnostics, and secrets.
 
-- The `Latest Source Status` UI now puts source/state on the first row and the full message below
-  with wrapping. It still needs user validation on a real multi-source run.
-- JobKarov, Drushim, and AllJobs now have named profile controls for their main category/role/
-  location or position selectors.
-- JobSwipe.co and Glassdoor remain URL-profile based. Secret Tel Aviv is also search-URL based,
-  with a detail-page limit.
-- A configuration change does not clear snapshots automatically. The UI warns about comparison
-  history; do not delete snapshots without an explicit user request.
+## Source Notes
+
+- **JobKarov**: structured profile selectors cover categories, roles grouped by specialization,
+  areas, and free query text. Requirements are merged from the search response without detail
+  requests.
+- **Drushim**: structured profiles support query, category IDs, subcategories, locations, scopes,
+  experience, and nearby-area/range fields. The source uses public search pages and embedded
+  Next.js data; do not route collection through `/api/jobs/search`.
+- **AllJobs**: positions, employment types, and regions have selectors. The position ID text field
+  stays synchronized with selected positions and preserves custom IDs. The source fetches one
+  position per request and deduplicates the merged result set.
+- **JobSwipe.co**: URL-profile based. Search pages provide detail URLs; detail pages provide
+  `JobPosting` JSON-LD.
+- **Secret Tel Aviv**: URL-profile based with a detail-page limit. Uses the browser TLS client.
+- **DevJobs**: structured filters cover developer types, districts, cities, query text, paging, and
+  bounded details. Partial detail failures preserve output without replacing snapshots.
+- **Glassdoor**: optional source. Requires a manually exported browser session. Search uses the
+  Glassdoor search API and detail enrichment uses the job-details API. Session expiry is expected;
+  do not automate or bypass anti-bot controls without explicit user approval.
+
+## UI and Product State
+
+- Source profile editing is usable for JobKarov, Drushim, AllJobs, DevJobs, Secret Tel Aviv,
+  JobSwipe.co, and Glassdoor.
+- Advanced/opaque Drushim fields are hidden under an advanced section by default.
+- Results rendering is paged with `Load more` to avoid heavy first render on MacCatalyst.
+- The main page avoids nesting `CollectionView` inside `ScrollView`.
+- For Mac testing, prefer a Release MacCatalyst build on Intel:
+
+```bash
+dotnet build src/JobWatcher.App/JobWatcher.App.csproj -c Release -f net10.0-maccatalyst -r maccatalyst-x64
+open "src/JobWatcher.App/bin/Release/net10.0-maccatalyst/maccatalyst-x64/Job Watcher.app"
+```
+
+## Branch and PR Notes
+
+- Main is protected with review required.
+- Use PRs for feature branches. After merge, delete stale branches such as old `test/*` branches.
+- Current feature branch at the time of this handoff: `feature/run-pause-stop`.
 
 ## Architecture Guardrails
 
 - Keep source adapters behind `IJobSource`.
-- Keep collection, comparison, snapshots, output JSON, and classification independent from each
-  source adapter.
+- Keep collection, comparison, snapshots, output JSON, classification, and run controls independent
+  from each source adapter.
 - Do not add packages, browser automation, proxies, a database, a web API, or a scheduler without
   explicit user approval.
 - Tests are offline only. Use trimmed fixtures in `tests/JobWatcher.Tests/Fixtures/`.
-- A live site response belongs in `data/diagnostics/` before any further parsing work.
+- A live site response belongs in `data/diagnostics/` before parser work continues.
 - After three failed fixes for the same problem, stop and report according to `AGENTS.md`.
 
 ## Verification Commands
 
-The Windows environment may fail or stall when using the shared compiler server. Use:
-
 ```powershell
-dotnet test tests/JobWatcher.Tests/JobWatcher.Tests.csproj --no-restore -m:1 /p:UseSharedCompilation=false
 dotnet build JobWatcher.sln --no-restore -m:1 /p:UseSharedCompilation=false
+dotnet test JobWatcher.sln --no-restore -m:1 /p:UseSharedCompilation=false
 ```
 
 Do not use a full `dotnet run` as a single-source diagnostic.
 
 ## Last Verified Baseline
 
-- Full solution build succeeded with 0 warnings and 0 errors.
-- Offline unit tests passed: 153 tests.
-- The latest code changes include shared HTTP request retry handling, partial failed source output,
-  explicit cancelled source output, manual run log retention, JobKarov role/query/location
-  controls, Drushim query/category/subcategory/location controls, and README documentation for
-  partial runs and structured profiles.
+- Full solution build succeeded with 0 warnings and 0 errors after merging `origin/main` into
+  `feature/run-pause-stop`.
+- Offline unit tests passed: 170 tests.
+- Latest verified branch: `feature/run-pause-stop` at commit `61a27e7`.
