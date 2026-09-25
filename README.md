@@ -80,12 +80,13 @@ is not required. Drushim category/subcategory/area IDs are not interchangeable w
 - `C#`: `subcat/372`
 - Software Engineer: `subcat/380`
 - High-tech general: `subcat/209` (not enabled by default; broad and noisy)
-- Center + Hasharon area IDs: `1-2-3-4-5-6-7-8-9-10-11-12-13-14`
-- full-time scope: `scope=1`
-- experience focus: `experience=2-3-4` and `ssaen=3` (middle/mid+/senior-compatible, but not senior-only)
+- Center + Hasharon area IDs: `1-2-5-9-10-11-12-13-14`
+- full-time/hybrid scopes: `scope=1-6`
+- default text search: `searchterm=backend`
+- SSA experience focus: `ssaen=3`
 - detail pages per search page: `25`; details are used to enrich listings with the full
   requirements text when the search card only contains a teaser
-- active combined role URL: `https://www.drushim.co.il/jobs/subcat/69-183-372-380-616/area/1-2-3-4-5-6-7-8-9-10-11-12-13-14/?catdir=6&scope=1&experience=2-3-4&geolexid=539071&isaa=true&ssaen=3&range=3`
+- active combined role URL: `https://www.drushim.co.il/jobs/cat6/area/1-2-5-9-10-11-12-13-14/?searchterm=backend&scope=1-6&geolexid=539071&isaa=true&ssaen=3&range=3`
 
 ### AllJobs
 
@@ -312,13 +313,12 @@ bringing source-site styling into the app.
         "Enabled": true,
         "DrushimFilter": {
           "BaseUrl": "https://www.drushim.co.il",
-          "Query": "",
+          "Query": "backend",
           "CategoryId": 6,
           "CategoryIds": [ 6 ],
           "SubcategoryIds": [ 69, 183, 372, 380, 616 ],
-          "AreaIds": [ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14 ],
-          "Scopes": [ 1 ],
-          "ExperienceRange": "2-3-4",
+          "AreaIds": [ 1, 2, 5, 9, 10, 11, 12, 13, 14 ],
+          "Scopes": [ 1, 6 ],
           "GeoLexId": 539071,
           "IncludeAreaAround": true,
           "Experience": 3,
