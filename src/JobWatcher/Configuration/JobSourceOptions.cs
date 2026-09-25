@@ -101,7 +101,7 @@ public sealed class GlassdoorFilterOptions
     /// Safety ceiling on job-detail API calls used to enrich listing descriptions. Keep this
     /// conservative because Glassdoor access depends on a short-lived browser session.
     /// </summary>
-    public int MaxDetailsPerSearch { get; init; } = 30;
+    public int MaxDetailsPerSearch { get; init; } = 300;
 }
 
 public sealed class SecretTelAvivFilterOptions
