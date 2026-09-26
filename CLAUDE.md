@@ -1,17 +1,18 @@
 # CLAUDE.md
 
-Правила роботи в цьому репозиторії описані в [AGENTS.md](AGENTS.md). **Прочитай його перед
-початком роботи** — він обов'язковий і має пріоритет.
+Agent rules for this repository are in [AGENTS.md](AGENTS.md). Read that file before making
+changes; it is mandatory and has priority.
 
-Найкоротше з нього, щоб не забути:
+Short version:
 
-- **3 невдалі спроби поспіль по одній проблемі → СТОП**, звіт користувачу, чекати на рішення.
-- **Живі HTTP-запити: максимум 3 за сесію**, відповідь одразу в `data/diagnostics/`, далі — офлайн.
-- **Анти-бот (403 / челендж / Cloudflare) → зупинитись негайно.** Не перебирати заголовки,
-  TLS-профілі, ретраї, cookies, проксі. Це рішення користувача.
-- **Питати до написання коду**, не після.
-- Парсери — тільки на локальних фікстурах, тести в мережу не ходять.
-- Без дозволу: жодних нових NuGet-пакетів, браузерної автоматизації, БД.
-- **Репозиторій не під git** — відкату немає.
-
-Спілкування з користувачем — українською, код і документація — англійською.
+- Speak with the user in Ukrainian. Code and documentation are English.
+- Stop after three failed fix attempts on the same problem and report options.
+- Use saved fixtures/diagnostics for parser work; tests must not hit live sites.
+- Live job-site requests have a strict budget and must be saved under `data/diagnostics/`.
+- Stop immediately on anti-bot/challenge responses. Do not rotate headers, TLS profiles, cookies,
+  proxies, or browser automation without explicit approval.
+- Do not add packages, browser automation, databases, web APIs, schedulers, or proxies without
+  approval.
+- The repo is under git. Do not reset/revert user work.
+- Runtime data and secrets live under `data/` or the MAUI app data directory. Never print or commit
+  `data/secrets/glassdoor-session.txt`.

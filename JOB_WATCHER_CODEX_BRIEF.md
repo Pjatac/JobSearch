@@ -1,5 +1,10 @@
 # Job Watcher — Initial Implementation Brief for Codex
 
+> Historical note: this was the initial implementation brief for the first JobKarov console
+> collector. It is kept for context only. For current behavior, source list, MAUI app features,
+> run controls, distribution notes, and operational rules, use `README.md`, `SESSION_HANDOFF.md`,
+> and `AGENTS.md`.
+
 ## 1. Goal
 
 Create a **.NET 10 console application** that checks configured Israeli job-search pages, extracts vacancies, compares the current full result with the previous successful run, and writes a JSON file containing only newly discovered vacancies.
