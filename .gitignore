@@ -12,6 +12,9 @@ Thumbs.db
 # Local runtime state, diagnostics, snapshots, and browser sessions
 data/
 
+# Local sharing drafts
+linkedin-post-draft.*
+
 # Local per-user settings
 *.user
 *.suo
