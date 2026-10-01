@@ -474,6 +474,18 @@ dotnet build JobWatcher.sln --no-restore -m:1 /p:UseSharedCompilation=false
 dotnet test JobWatcher.sln -m:1
 ```
 
+Prebuilt release files are published on the GitHub Releases page:
+
+- `JobWatcher-v1.0.0-win-x64.zip` for 64-bit Windows.
+- `JobWatcher-v1.0.0-win-x86.zip` for 32-bit Windows.
+- `JobWatcher-v1.0.0-macos-arm64.pkg` for Apple Silicon Macs.
+- `JobWatcher-v1.0.0-macos-x64-app.zip` for Intel Macs. Unzip it and run `Job Watcher.app`.
+
+Windows packages are portable self-contained folders. Extract the zip and run `JobWatcher.App.exe`.
+macOS packages are not notarized, so macOS may require approving the app in Privacy & Security or
+removing quarantine manually. Glassdoor is not usable out of the box; each user must configure their
+own exported browser session in the app.
+
 For a simple Windows folder that can be zipped and handed to a non-developer, publish the MAUI app
 as an unpackaged self-contained build:
 
