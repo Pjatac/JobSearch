@@ -80,6 +80,16 @@ ambiguous evidence.
 - A signed installer and update story.
 - Scheduling or digests only after a separate hosting/security design. Do not add an internal
   scheduler casually.
+- LinkedIn as an additional job source behind `IJobSource`. LinkedIn enforces aggressive bot
+  detection and auth walls, so this needs a verified-access approach (likely an exported-session
+  path similar to Glassdoor) and explicit approval before any live automation — never a casual
+  scrape or a challenge bypass.
+- Notifications for newly discovered `relevant` listings: desktop/system notifications or email
+  digests. Delivery and any unattended trigger share the scheduling caveat above and must follow a
+  separate hosting/security design rather than an internally added scheduler.
+- Mobile clients (iOS / Android) by extending the existing .NET MAUI app beyond Windows and
+  MacCatalyst, reusing the shared collector core. The on-disk data model and the Glassdoor
+  exported-session flow would need adapting to mobile app-sandbox storage.
 
 ## Non-Goals Without Explicit Approval
 
