@@ -14,6 +14,7 @@ data/
 
 # Local sharing drafts
 linkedin-post-draft.*
+LOCAL_RESTART_PROMPT.md
 
 # Local per-user settings
 *.user
